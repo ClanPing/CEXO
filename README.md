@@ -1,2 +1,2 @@
 # CSLP-Elites
-Enhancing Construction Site Layout Planning (CSLP) with a hybrid of Quality Diversity (MAP-Elites) and Multi-Objective (NSGA-II) optimization.
+CSLP-Elite is a research framework that enhances Construction Site Layout Planning (CSLP) by integrating Quality Diversity algorithms (MAP-Elites) with Multi-Objective Optimization (NSGA-II). Unlike traditional methods that focus solely on Pareto-optimal solutions, CSLP-Elite explores a broad spectrum of diverse, high-performing layouts across multiple niches. This approach enables planners to evaluate not just the "best" designs, but also a wide variety of feasible alternatives that balance trade-offs between structural feasibility, transportation efficiency, and logistics accessibility.
