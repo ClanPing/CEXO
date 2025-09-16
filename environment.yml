@@ -1,0 +1,10 @@
+name: cslp-elites
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - numpy>=1.20.0
+  - matplotlib>=3.5.0
+  - pip
+  - pip:
