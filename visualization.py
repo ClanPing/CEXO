@@ -107,7 +107,7 @@ def visualize_layout(ax, individual: Individual, config: SiteConfig, title: str 
     ax.set_title(full_title, fontweight='bold', fontsize=8)
 
 # =============================================================================
-# MAP-ELITES VISUALIZATIONS
+# MAP-ELITES + NSGA-II VISUALIZATIONS
 # =============================================================================
 
 def create_mapelites_visualizations(archive, config: SiteConfig, output_dir: str):
@@ -440,12 +440,149 @@ def show_quality_layouts(individuals: List[Individual], config: SiteConfig,
     print(f"  Saved quality layouts: {layouts_path}")
 
 # =============================================================================
+# PURE MAP-ELITES VISUALIZATIONS
+# =============================================================================
+
+def create_pure_mapelites_visualizations(archive, config: SiteConfig, output_dir: str):
+    """Create comprehensive Pure MAP-Elites visualizations"""
+    print("Creating Pure MAP-Elites visualizations...")
+    
+    all_individuals = archive.get_all_individuals()
+    if not all_individuals:
+        return
+    
+    # 3D objective space + 2D behavioral space + scalar fitness visualization
+    fig = plt.figure(figsize=(16, 12))
+    
+    # 3D objective space
+    ax1 = fig.add_subplot(2, 3, 1, projection='3d')
+    
+    objectives = np.array([ind.objectives for ind in all_individuals])
+    scalar_fitnesses = [getattr(ind, 'scalar_fitness', archive.calculate_scalar_fitness(ind)) 
+                       for ind in all_individuals]
+    
+    scatter1 = ax1.scatter(objectives[:, 0], objectives[:, 1], objectives[:, 2], 
+                          c=scalar_fitnesses, cmap='viridis', alpha=0.7, s=40)
+    ax1.set_xlabel('Safety & Compliance')
+    ax1.set_ylabel('Operational Efficiency')
+    ax1.set_zlabel('Layout Adaptability')
+    ax1.set_title('3D Objective Space\n(Color = Scalar Fitness)')
+    plt.colorbar(scatter1, ax=ax1, label='Scalar Fitness', shrink=0.6)
+    
+    # 2D Behavioral space colored by scalar fitness
+    ax2 = fig.add_subplot(2, 3, 2)
+    behaviors = np.array([ind.behaviors for ind in all_individuals])
+    
+    scatter2 = ax2.scatter(behaviors[:, 0], behaviors[:, 1], 
+                          c=scalar_fitnesses, cmap='viridis', alpha=0.7, s=40)
+    ax2.set_xlabel('BD1: Compactness vs Spread\n(Compact → Spread)')
+    ax2.set_ylabel('BD2: Worker-Operational Separation\n(Embedded → Segregated)')
+    ax2.set_title('2D Behavioral Space\n(Color = Scalar Fitness)')
+    plt.colorbar(scatter2, ax=ax2, label='Scalar Fitness')
+    
+    # Safety in behavioral space  
+    ax3 = fig.add_subplot(2, 3, 3)
+    safety_scores = [ind.objectives[0] for ind in all_individuals]
+    scatter3 = ax3.scatter(behaviors[:, 0], behaviors[:, 1], 
+                          c=safety_scores, cmap='RdYlGn', alpha=0.7, s=40)
+    ax3.set_xlabel('BD1: Compactness vs Spread')
+    ax3.set_ylabel('BD2: Worker-Operational Separation')
+    ax3.set_title('2D Behavioral Space\n(Color = Safety Score)')
+    plt.colorbar(scatter3, ax=ax3, label='Safety Score')
+    
+    # Archive grid visualization
+    ax4 = fig.add_subplot(2, 3, 4)
+    create_pure_mapelites_grid_plot(ax4, archive)
+    
+    # Scalar fitness distribution
+    ax5 = fig.add_subplot(2, 3, 5)
+    ax5.hist(scalar_fitnesses, bins=20, alpha=0.7, color='skyblue', edgecolor='black')
+    ax5.axvline(np.mean(scalar_fitnesses), color='red', linestyle='--', 
+                label=f'Mean: {np.mean(scalar_fitnesses):.3f}')
+    ax5.axvline(np.max(scalar_fitnesses), color='green', linestyle='--', 
+                label=f'Best: {np.max(scalar_fitnesses):.3f}')
+    ax5.set_xlabel('Scalar Fitness')
+    ax5.set_ylabel('Frequency')
+    ax5.set_title('Scalar Fitness Distribution')
+    ax5.legend()
+    ax5.grid(True, alpha=0.3)
+    
+    # Archive statistics
+    stats = archive.get_stats()
+    best_individual = archive.get_best_individual()
+    best_obj = best_individual.objectives if best_individual else (0, 0, 0)
+    
+    stats_text = [
+        f"Pure MAP-Elites Results:",
+        f"",
+        f"Archive Coverage:",
+        f"  Cells: {stats['coverage']:,} / {archive.total_cells:,}",
+        f"  Coverage: {stats['coverage_pct']:.3f}%",
+        f"",
+        f"Scalar Fitness Quality:",
+        f"  Average: {stats['avg_scalar_fitness']:.3f}",
+        f"  Best: {stats['best_scalar_fitness']:.3f}",
+        f"",
+        f"Best Solution Objectives:",
+        f"  Safety: {best_obj[0]:.3f}",
+        f"  Efficiency: {best_obj[1]:.3f}",
+        f"  Adaptability: {best_obj[2]:.3f}",
+        f"",
+        f"Safety Feasible: {stats['safety_feasible_count']:,}",
+        f"Total Evaluations: {archive.evaluations:,}"
+    ]
+    
+    ax6 = fig.add_subplot(2, 3, 6)
+    ax6.text(0.1, 0.9, '\n'.join(stats_text), transform=ax6.transAxes,
+             fontsize=10, verticalalignment='top', fontfamily='monospace')
+    ax6.set_xlim(0, 1)
+    ax6.set_ylim(0, 1)
+    ax6.axis('off')
+    ax6.set_title('Results Summary', fontweight='bold')
+    
+    plt.tight_layout()
+    analysis_path = os.path.join(output_dir, "pure_mapelites_analysis.png")
+    plt.savefig(analysis_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"  Saved Pure MAP-Elites analysis: {analysis_path}")
+    
+    # Show diverse high-quality layouts
+    show_quality_layouts(all_individuals, config, output_dir, "pure_mapelites_layouts.png")
+
+def create_pure_mapelites_grid_plot(ax, archive):
+    """Create Pure MAP-Elites archive grid visualization"""
+    grid_h, grid_w = archive.grid_size
+    fitness_grid = np.zeros((grid_h, grid_w))
+    
+    max_fitness = 0.0
+    for (i, j), individual in archive.archive.items():
+        fitness = getattr(individual, 'scalar_fitness', archive.calculate_scalar_fitness(individual))
+        fitness_grid[i, j] = fitness
+        max_fitness = max(max_fitness, fitness)
+    
+    # Use a mask for empty cells
+    fitness_grid_masked = np.ma.masked_where(fitness_grid == 0, fitness_grid)
+    
+    im = ax.imshow(fitness_grid_masked, cmap='viridis', origin='lower', vmin=0, vmax=max_fitness)
+    ax.set_title('Archive Grid\n(Color = Scalar Fitness)')
+    ax.set_xlabel('BD2: Functional Integration')
+    ax.set_ylabel('BD1: Spatial Organization')
+    
+    # Add fitness values to occupied cells
+    for i in range(grid_h):
+        for j in range(grid_w):
+            if fitness_grid[i, j] > 0:
+                text_color = 'white' if fitness_grid[i, j] > max_fitness * 0.6 else 'black'
+                ax.text(j, i, f'{fitness_grid[i, j]:.2f}', 
+                        ha='center', va='center', color=text_color, fontweight='bold', fontsize=7)
+
+# =============================================================================
 # RESULTS EXPORT FUNCTIONS
 # =============================================================================
 
-def export_mapelites_results(archive, config: SiteConfig, output_dir: str, max_layouts: int = 30) -> int:
-    """Export MAP-Elites results to JSON"""
-    print(f"Exporting MAP-Elites results to {output_dir}/...")
+def export_cslpelite_results(archive, config: SiteConfig, output_dir: str, max_layouts: int = 30) -> int:
+    """Export CSLP Elite (MAP-Elites + NSGA-II) results to JSON"""
+    print(f"Exporting CSLP Elite (MAP-Elites + NSGA-II) results to {output_dir}/...")
     os.makedirs(output_dir, exist_ok=True)
     
     all_individuals = archive.get_all_individuals()
@@ -460,7 +597,7 @@ def export_mapelites_results(archive, config: SiteConfig, output_dir: str, max_l
     exported = 0
     for i, individual in enumerate(safety_feasible[:max_layouts]):
         layout_data = {
-            "id": f"mapelites_layout_{i:03d}",
+            "id": f"cslpelite_layout_{i:03d}",
             "objectives": {
                 "safety_compliance": float(individual.objectives[0]),
                 "operational_efficiency": float(individual.objectives[1]),
@@ -490,7 +627,7 @@ def export_mapelites_results(archive, config: SiteConfig, output_dir: str, max_l
             ]
         }
         
-        filepath = os.path.join(output_dir, f"mapelites_layout_{i:03d}.json")
+        filepath = os.path.join(output_dir, f"cslpelite_layout_{i:03d}.json")
         with open(filepath, 'w') as f:
             json.dump(layout_data, f, indent=2)
         exported += 1
@@ -498,7 +635,7 @@ def export_mapelites_results(archive, config: SiteConfig, output_dir: str, max_l
     # Create summary
     stats = archive.get_stats()
     summary = {
-        "algorithm": "MAP-Elites + 3-Objective NSGA-II",
+        "algorithm": "CSLP Elite (MAP-Elites + 3-Objective NSGA-II)",
         "objectives": {
             "safety_compliance": "Boundary + overlap + critical safety constraints",
             "operational_efficiency": "Material flows + equipment access + workflow",
@@ -523,7 +660,7 @@ def export_mapelites_results(archive, config: SiteConfig, output_dir: str, max_l
         }
     }
     
-    with open(os.path.join(output_dir, "mapelites_summary.json"), 'w') as f:
+    with open(os.path.join(output_dir, "cslpelite_summary.json"), 'w') as f:
         json.dump(summary, f, indent=2)
     
     print(f"  Exported {exported} layouts and summary")
@@ -616,4 +753,110 @@ def export_nsga2_results(results: Dict, config: SiteConfig, output_dir: str, max
         json.dump(summary, f, indent=2)
     
     print(f"  Exported {exported} Pareto-optimal layouts and summary")
+    return exported
+
+def export_mapelites_results(archive, config: SiteConfig, output_dir: str, max_layouts: int = 30) -> int:
+    """Export Pure MAP-Elites results to JSON"""
+    print(f"Exporting Pure MAP-Elites results to {output_dir}/...")
+    os.makedirs(output_dir, exist_ok=True)
+    
+    all_individuals = archive.get_all_individuals()
+    
+    # Sort by scalar fitness
+    all_individuals.sort(key=lambda x: getattr(x, 'scalar_fitness', archive.calculate_scalar_fitness(x)), reverse=True)
+    
+    # Filter to safe solutions first, then fall back to best overall if needed
+    safety_feasible = [ind for ind in all_individuals if ind.objectives[0] >= 0.7]
+    
+    if safety_feasible:
+        export_candidates = safety_feasible[:max_layouts]
+    else:
+        export_candidates = all_individuals[:max_layouts]
+    
+    exported = 0
+    for i, individual in enumerate(export_candidates):
+        scalar_fitness = getattr(individual, 'scalar_fitness', archive.calculate_scalar_fitness(individual))
+        
+        layout_data = {
+            "id": f"mapelites_layout_{i:03d}",
+            "objectives": {
+                "safety_compliance": float(individual.objectives[0]),
+                "operational_efficiency": float(individual.objectives[1]),
+                "layout_adaptability": float(individual.objectives[2]),
+                "scalar_fitness": float(scalar_fitness)
+            },
+            "behaviors": {
+                "spatial_organization": float(individual.behaviors[0]),
+                "functional_integration": float(individual.behaviors[1])
+            },
+            "feasibility": {
+                "safe": individual.feasible,
+                "violations": individual.violations
+            },
+            "facilities": [
+                {
+                    "type": f["type"],
+                    "x": float(f["center"][0]),
+                    "y": float(f["center"][1]),
+                    "category": FACILITY_SPECS[f["type"]]["category"]
+                }
+                for f in individual.solution
+            ],
+            "entrances": [
+                {"x": float(e[0]), "y": float(e[1])} 
+                for e in individual.entrances
+            ]
+        }
+        
+        filepath = os.path.join(output_dir, f"mapelites_layout_{i:03d}.json")
+        with open(filepath, 'w') as f:
+            json.dump(layout_data, f, indent=2)
+        exported += 1
+    
+    # Create summary
+    stats = archive.get_stats()
+    best_individual = archive.get_best_individual()
+    best_obj = best_individual.objectives if best_individual else (0, 0, 0)
+    best_fitness = getattr(best_individual, 'scalar_fitness', 0.0) if best_individual else 0.0
+    
+    summary = {
+        "algorithm": "Pure MAP-Elites",
+        "objectives": {
+            "safety_compliance": "Boundary + overlap + critical safety constraints",
+            "operational_efficiency": "Material flows + equipment access + workflow",
+            "layout_adaptability": "Expansion + redundancy + reconfiguration potential"
+        },
+        "behavioral_space": {
+            "spatial_organization": "Centralized vs distributed layout patterns", 
+            "functional_integration": "Segregated vs mixed functional zones"
+        },
+        "fitness_function": "Weighted scalar combination of three objectives",
+        "total_exported": exported,
+        "archive_performance": {
+            "grid_size": f"{archive.grid_size[0]}×{archive.grid_size[1]}",
+            "coverage": stats['coverage'],
+            "coverage_percentage": stats['coverage_pct'],
+            "total_individuals": stats['total_individuals'],
+            "safety_feasible": stats['safety_feasible_count']
+        },
+        "quality_metrics": {
+            "best_scalar_fitness": best_fitness,
+            "avg_scalar_fitness": stats['avg_scalar_fitness'],
+            "best_solution_objectives": {
+                "safety": best_obj[0],
+                "efficiency": best_obj[1], 
+                "adaptability": best_obj[2]
+            }
+        },
+        "objective_averages": {
+            "safety": stats['avg_safety'],
+            "efficiency": stats['avg_efficiency'],
+            "adaptability": stats['avg_adaptability']
+        }
+    }
+    
+    with open(os.path.join(output_dir, "mapelites_summary.json"), 'w') as f:
+        json.dump(summary, f, indent=2)
+    
+    print(f"  Exported {exported} layouts and summary")
     return exported
