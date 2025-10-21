@@ -113,3 +113,19 @@ A layout violates this constraint if any two facilities have overlapping areas.
 $$V_{\mathrm{overlap}} = \sum_{i < j} A_{\mathrm{overlap}}(f_i, f_j)$$
 
 ### 🎯 Objective functions
+#### 1) Safety compliance
+Measures hazard prevention and worker protection.
+
+$$O_1 = 1 - \min\left(1, \frac{\sum_{j \in \text{workers}} P_{danger}(j)}{n_{workers}}\right)$$
+
+**Crane danger penalty** for worker facility $j$:
+
+$$P_{danger}(j) = \begin{cases}
+0 & \text{if } d_j \geq r_{danger} \\
+\left(\frac{r_{danger} - d_j}{r_{danger}}\right) \times 0.3 & \text{if } d_j < r_{danger}
+\end{cases}$$
+
+where:
+- $d_j$ = distance from nearest crane to worker facility $j$
+- $r_{danger} = 0.25$ (crane danger radius)
+- $\text{workers} = \{\text{office}, \text{rest\_area}\}$
