@@ -7,7 +7,7 @@ Main execution script for the CSLP Elite algorithm (MAP-Elites + NSGA-II).
 Combines behavioral diversity exploration with multi-objective optimization.
 
 Usage:
-    python run_cslpelite.py --facilities 6 --iterations 15000 --visualize
+    python run_cslpelites.py --facilities 6 --iterations 15000 --visualize
 """
 
 import sys
