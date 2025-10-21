@@ -66,15 +66,15 @@ If count > 5:  Fill remaining with [core, storage, crane]  # Additional operatio
 Finally:       Shuffle order randomly (seed-controlled)
 ```
 
-**Example Generations** (with seed=42):
+**Example Generations** (default seed=42):
 
 | Count | Facility Mix | Breakdown |
 |-------|--------------|-----------|
 | 3 | `['storage', 'core', 'crane']` | 3 operational only |
-| 4 | `['crane', 'storage', 'core', 'crane']` | 3 operational + 1 extra operational |
-| 5 | `['rest_area', 'core', 'storage', 'crane', 'office']` | 3 operational + 2 worker |
-| 6 | `['office', 'storage', 'rest_area', 'core', 'crane', 'storage']` | Balanced + 1 extra operational |
-| 7 | `['crane', 'office', 'rest_area', 'storage', 'core', 'storage', 'crane']` | Balanced + 2 extra operational |
-| 8 | `['storage', 'crane', 'core', 'office', 'rest_area', 'crane', 'storage', 'core']` | Full site |
+| 4 | `['storage', 'core', 'crane', 'crane']` | 3 operational + 1 extra operational |
+| 5 | `['storage', 'core', 'crane', 'rest_area', 'office']` | 3 operational + 2 worker |
+| 6 | `['storage', 'core', 'crane', 'rest_area', 'office', 'storage']` | Balanced + 1 extra operational |
+| 7 | `['storage', 'core', 'crane', 'rest_area', 'office', 'storage', 'crane']` | Balanced + 2 extra operational |
+| 8 | `['storage', 'core', 'crane', 'rest_area', 'office', 'storage', 'crane', 'storage', 'core', 'crane']` | Full site |
 
 ## Objective functions
