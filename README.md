@@ -39,7 +39,7 @@ CSLP/
 └── readme_file.md                   # This file
 ```
 
-## 🏗️ Layout configurations
+### 🏗️ Layout configurations
 
 <p align="center">
 <img src="assets/config.png" alt="Facility types">
@@ -77,4 +77,4 @@ Finally:       Shuffle order randomly (seed-controlled)
 | 7 | `['storage', 'core', 'crane', 'rest_area', 'office', 'storage', 'crane']` | Balanced + 2 extra operational |
 | 8 | `['storage', 'core', 'crane', 'rest_area', 'office', 'storage', 'crane', 'storage', 'core', 'crane']` | Full site |
 
-## Objective functions
+### Objective functions
