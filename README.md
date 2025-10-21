@@ -16,7 +16,7 @@ CSLP/
 │   ├── config.py                    # Configurations and data structures
 │   ├── objectives.py                # Objective functions for NSGA-II
 │   ├── behavioral_descriptors.py    # Behavioral descriptors for MAP-Elites
-│   └── layout_generation.py         # Layout generation and genetic operators
+│   ├── layout_generation.py         # Layout generation and genetic operators
 │   └── visualization.py             # Visualization and export functions
 
 [Algorithm Implementations]
@@ -35,9 +35,9 @@ CSLP/
 │   └── nsga2_output/                # NSGA-II results
 
 [Others]
-├── environment.yml                  # Conda environment specification
-└── project_information.md           # CSLP-Elites detailed info
-└── readme_file.md                   # This file
+│   ├── environment.yml              # Conda environment specification
+│   ├── project_information.md       # CSLP-Elites detailed info
+│   └── readme_file.md               # This file
 ```
 
 ## 📋 Project information
