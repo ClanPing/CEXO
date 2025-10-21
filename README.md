@@ -13,28 +13,29 @@ This project presents CSLP-Elites, a hybrid optimization framework that integrat
 ### 📁 Project structure
 ```
 CSLP/
-├── Core Modules
+[Core Modules]
 │   ├── config.py                    # Configurations and data structures
 │   ├── objectives.py                # Objective functions for NSGA-II
 │   ├── behavioral_descriptors.py    # Behavioral descriptors for MAP-Elites
 │   └── layout_generation.py         # Layout generation and genetic operators
 │   └── visualization.py             # Visualization and export functions
 
-├── Algorithm Implementations
+[Algorithm Implementations]
 │   ├── cslpelite_algorithm.py       # CSLP Elite (MAP-Elites + NSGA-II)
 │   ├── mapelites_algorithm.py       # Pure MAP-Elites with scalar fitness
 │   └── nsga2_algorithm.py           # Pure NSGA-II multi-objective
 
-├── Runnable Scripts
+[Runnable Scripts]
 │   ├── run_cslpelite.py             # Run CSLP Elite hybrid algorithm
 │   ├── run_mapelites.py             # Run pure MAP-Elites
 │   └── run_nsga2.py                 # Run pure NSGA-II
 
-├── Output Directories (generated)
+[Output Directories] (generated)
 │   ├── cslpelite_output/            # CSLP Elite results
 │   ├── mapelites_output/            # MAP-Elites results
 │   └── nsga2_output/                # NSGA-II results
 
+[Others]
 ├── environment.yml                  # Conda environment specification
 └── readme_file.md                   # This file
 ```
@@ -57,6 +58,7 @@ Maximum Facilities: 8 (complex multi-function site)
 Default Configuration**: 6 facilities
 - Typical mix: `core`, `crane`, `storage`, `office`, `rest_area`, + 1 operational facility
 ```
+
 ```
 Facility combination:
 
