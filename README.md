@@ -39,7 +39,7 @@ CSLP/
 └── readme_file.md                   # This file
 ```
 
-## Project information
+## 📋 Project information
 For the detailed problem formulation of CSLP-Elites, please refer to this [documentation](project_information.md) which include how layouts are generated, evaluated, and categorised.
 
 This section includes:
