@@ -1,10 +1,41 @@
 # CSLP-Elites
-CSLP-Elite is a research framework that enhances Construction Site Layout Planning (CSLP) by integrating Quality Diversity algorithms (MAP-Elites) with Multi-Objective Optimization (NSGA-II). Unlike traditional methods that focus solely on Pareto-optimal solutions, CSLP-Elite explores a broad spectrum of diverse, high-performing layouts across multiple niches. This approach enables planners to evaluate not just the "best" designs, but also a wide variety of feasible alternatives that balance trade-offs between structural feasibility, transportation efficiency, and logistics accessibility.
+**Hybrid Quality-Diversity Framework for Construction Site Layout Planning (CSLP)**
+This project presents CSLP-Elites, a hybrid optimization framework that integrates MAP-Elites an NSGA-II to generate diverse and high-performing construction site layouts.
 
+## 🎯 Key features
+- **Three optimization algorithms** with comparative modes
+- **Multi-objective optimization** (3 objectives: Safety, Efficiency, Adaptability)
+- **Behavioral diversity exploration** (2D behavioral space: Compactness-Spread × Worker-Operational Separation)
+- **Comprehensive visualization** and analysis tools
+- **Modular architecture** for easy extension and experimentation
+
+## 📁 Project structure
 ```
-python run_nsga2.py --facilities 6 --population 200 --generations 300 --visualize
+CSLP/
+├── Core Modules
+│   ├── config.py                    # Configurations and data structures
+│   ├── objectives.py                # Objective functions for NSGA-II
+│   ├── behavioral_descriptors.py    # Behavioral descriptors for MAP-Elites
+│   └── layout_generation.py         # Layout generation and genetic operators
+│   └── visualization.py             # Visualization and export functions
+
+├── Algorithm Implementations
+│   ├── cslpelite_algorithm.py       # CSLP Elite (MAP-Elites + NSGA-II)
+│   ├── mapelites_algorithm.py       # Pure MAP-Elites with scalar fitness
+│   └── nsga2_algorithm.py           # Pure NSGA-II multi-objective
+
+├── Runnable Scripts
+│   ├── run_cslpelite.py             # Run CSLP Elite hybrid algorithm
+│   ├── run_mapelites.py             # Run pure MAP-Elites
+│   └── run_nsga2.py                 # Run pure NSGA-II
+
+├── Output Directories (generated)
+│   ├── cslpelite_output/            # CSLP Elite results
+│   ├── mapelites_output/            # MAP-Elites results
+│   └── nsga2_output/                # NSGA-II results
+
+├── environment.yml                  # Conda environment specification
+└── readme_file.md                   # This file
 ```
 
-```
-python run_hybrid.py --facilities 6 --iterations 15000 --visualize
-```
+## Module descriptions
