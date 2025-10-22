@@ -1,10 +1,10 @@
-## 🏗️ Layout configurations
+# 🏗️ Layout configurations
 
 <p align="center">
 <img src="assets/config.png" alt="Facility types">
 </p>
 
-### Facility selection range:
+## Facility selection range:
 
 - **Minimum Facilities**: 3 (minimal operational site)
   - Always includes: `core`, `crane`, `storage`
