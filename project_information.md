@@ -1,9 +1,9 @@
 # Project information
 This section separates into 4 main sections:
 - [Layout Configurations](#-layout-configurations)
-- [🚧 Constraints](#-constraints)
-- [🎯 Objective Functions](#-objective-functions)
-- [🧠 Behavioral Descriptors](#-behavioral-descriptors)
+- [Constraints](#-constraints)
+- [Objective Functions](#-objective-functions)
+- [Behavioral Descriptors](#-behavioral-descriptors)
 ---
 
 ## 🏗️ Layout configurations
