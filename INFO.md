@@ -1,4 +1,10 @@
 # Project information
+In CSLP-Elites, our goal is to **generate diverse and high-performing construction site layouts** that balance safety, efficiency, and adaptability. To achieve this, the framework combines objective functions and behavioural descriptors:
+
+- **Objective Functions** measure how well a layout performs against practical goals, such as maintaining safety distances, reducing material handling time, and improving site adaptability. They guide the optimisation process toward high-quality, feasible configurations.
+
+- **Behavioural Descriptors (BDs)** describe how layouts differ in their spatial and functional organisation (e.g., compact vs spread, integrated vs segregated). They encourage exploration of the design space by preserving variation across behavioural dimensions.
+
 This section separates into 4 main sections:
 - [Layout Configurations](#layout-configurations)
 - [Constraints](#-constraints)
