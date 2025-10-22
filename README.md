@@ -36,8 +36,8 @@ CSLP/
 
 [Others]
 │   ├── environment.yml              # Conda environment specification
-│   ├── project_information.md       # CSLP-Elites detailed info
-│   └── readme_file.md               # This file
+│   ├── INFO.md       # CSLP-Elites detailed info
+│   └── READMME.md               # This file
 ```
 
 ## 📋 Project information
