@@ -20,7 +20,7 @@ from pathlib import Path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from config import SiteConfig, MapElitesConfig, generate_facility_mix
-from cslpelite_algorithm import MapElitesNSGA2Optimizer, evaluate_mapelites_performance
+from cslpelites_algorithm import MapElitesNSGA2Optimizer, evaluate_mapelites_performance
 from visualization import create_mapelites_visualizations, export_cslpelite_results
 from behavioral_descriptors import analyze_behavioral_regions
 
