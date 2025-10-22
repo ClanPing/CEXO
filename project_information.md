@@ -1,12 +1,12 @@
 # Project information
 This section separates into 4 main sections:
-- [Layout Configurations](#-layout-configurations)
+- [Layout Configurations](#layout-configurations)
 - [Constraints](#-constraints)
-- [Objective Functions](#-objective-functions)
-- [Behavioral Descriptors](#-behavioral-descriptors)
+- [Objective functions](#-objective-functions)
+- [Behavioral descriptors](#-behavioral-descriptors)
+  
 ---
-
-## 🏗️ Layout configurations
+<h2 id="layout-configurations">🏗️ Layout Configurations</h2>
 
 <p align="center">
 <img src="assets/config.png" alt="Facility types">
