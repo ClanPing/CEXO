@@ -56,6 +56,7 @@ This section includes:
 Start by cloning this repository:
 ```bash
 git clone https://github.com/ClanPing/CSLP-Elites.git
+cd CSLP-Elites
 ```
 
 Next, install the dependencies:
