@@ -239,3 +239,17 @@ python run_nsga2.py --facilities 8 --population 400 --generations 600 --visualiz
   - `nsga2_detailed_metrics.json`
   - `nsga2_analysis.png`
   - `nsga2_pareto_layouts.png`
+
+## Comparative performance of CSLP-Elites against baseline models
+
+| Aspect | **CSLP Elite (Hybrid)** | **Pure MAP-Elites (Baseline)** | **Pure NSGA-II (Baseline)** |
+|--------|-------------------------|--------------------------------|------------------------------|
+| **Optimization Approach** | Multi-objective + Behavioral diversity | Scalar fitness + Behavioral diversity | Multi-objective only (no diversity) |
+| **Output Structure** | 2D behavioral grid of Pareto fronts | 2D behavioral grid of single solutions | Single Pareto front |
+| **Solution Count** | Up to 400×12 = **4,800 solutions** | Up to 400 solutions | ~100-200 solutions |
+| **Behavioral Space** | ✅ **Systematically explored** | ✅ Explored (scalar fitness) | ❌ Not considered |
+| **Multi-Objective** | ✅ **True Pareto optimization** | ❌ Weighted sum only | ✅ Pareto optimization |
+| **Diversity Mechanism** | ✅ **Behavioral + Pareto fronts** | Behavioral only | Crowding distance only |
+| **Computational Cost** | High (5-10 min) | Medium (3-5 min) | Low (2-4 min) |
+| **Solution Quality** | ✅ **Highest** - Pareto per cell | Medium - single best per cell | High - single Pareto front |
+| **Design Flexibility** | ✅ **Maximum** - diverse trade-offs | High - diverse but fixed weights | Low - single optimal set |
