@@ -48,7 +48,11 @@ Facility combination:
 These are feasibility requirements that all valid layouts must meet:
 
 ### 1) Boundary compliance
-All facilities must remain within site boundaries with margin clearance
+All facilities must remain within site boundaries with margin clearance.
+
+<p align="center">
+<img src="assets/constraint1.png" alt="Boundary compliance constraint" width="550">
+</p>
 
 $$C_1: \quad \forall i \in facilities, \quad \text{margin} \leq x_i, y_i \leq 1 - \text{margin}$$
 
@@ -64,6 +68,10 @@ $$V_{boundary} = \sum_{i=1}^{n} \max\left(0, \text{margin} - x_i, x_i + \frac{w_
 
 ### 2) No overlapping facilities
 Facilities cannot physically overlap each other.
+
+<p align="center">
+<img src="assets/constraint2.png" alt="No overlap constraint" width="550">
+</p>
 
 $$C_2: \quad \forall i \neq j, \quad A_{\mathrm{overlap}}(f_i, f_j) = 0$$
 
@@ -81,6 +89,10 @@ $$V_{\mathrm{overlap}} = \sum_{i < j} A_{\mathrm{overlap}}(f_i, f_j)$$
 ## 🎯 Objective Functions
 ### 1) Safety compliance
 Measures hazard prevention and worker protection.
+
+<p align="center">
+<img src="assets/objective1.png" alt="Objective function 1" width="550">
+</p>
 
 $$O_1 = 1 - \min\left(1, \frac{\sum_{j \in \text{workers}} P_{danger}(j)}{n_{workers}}\right)$$
 
@@ -105,7 +117,11 @@ where:
 - Returns: `(safety_score, feasible_flag, violation_list)`
 
 ### 2) Operational efficiency
-Optimizes material flows, equipment accessibility, and workflow support
+Optimizes material flows, equipment accessibility, and workflow support.
+
+<p align="center">
+<img src="assets/objective2.png" alt="Objective function 2" width="650">
+</p>
 
 $$O_2 = 0.4 \times E_{flow} + 0.4 \times E_{access} + 0.2 \times E_{sequence}$$
 
@@ -162,9 +178,12 @@ $$E_{sequence} = \frac{1}{n_{offices}} \sum_{o \in \text{offices}} \max\left(0, 
 
 where $d_{o,entrance}$ = distance from office $o$ to nearest entrance
 
-
 ### 3) Layout adaptability
 Measures future flexibility, expansion capacity, and reconfiguration potential.
+
+<p align="center">
+<img src="assets/objective3.png" alt="Objective function 3" width="650">
+</p>
 
 $$O_3 = 0.4 \times A_{expansion} + 0.35 \times A_{redundancy} + 0.25 \times A_{reconfig}$$
 
@@ -220,6 +239,10 @@ where:
 ### 1) Spatial organization
 Measures how facilities are distributed across the site:
 
+<p align="center">
+<img src="assets/bd1.png" alt="Behavioral descriptor 1" width="550">
+</p>
+
 $$BD_1 = \frac{\bar{d}_{centroid}}{B}$$
 
 where:
@@ -245,6 +268,10 @@ $$\mathbf{c} = \frac{1}{n}\sum_{i=1}^{n} \mathbf{p}_i \quad \text{(global centro
 
 ### 2) Functional Integration
 Measures the spatial relationship between worker facilities and operational zones:
+
+<p align="center">
+<img src="assets/bd2.png" alt="Behavioral descriptor 2" width="550">
+</p>
 
 $$BD_2 = \frac{\bar{d}_{separation}}{S}$$
 
