@@ -41,7 +41,7 @@ CSLP/
 ```
 
 ## 📋 Project information
-For the detailed problem formulation of CSLP-Elites, please refer to this [documentation](project_information.md) which include how layouts are generated, evaluated, and categorised.
+For the detailed problem formulation of CSLP-Elites, please refer to this [documentation](INFO.md) which include how layouts are generated, evaluated, and categorised.
 
 This section includes:
 - Layout Configurations: Rules for facility selection, placement, and spatial combinations.
