@@ -240,7 +240,9 @@ python run_nsga2.py --facilities 8 --population 400 --generations 600 --visualiz
   - `nsga2_analysis.png`
   - `nsga2_pareto_layouts.png`
 
-## Comparative performance of CSLP-Elites against baseline models
+---
+
+### Comparative performance of CSLP-Elites against baseline models
 
 | Aspect | **CSLP Elite (Hybrid)** | **Pure MAP-Elites (Baseline)** | **Pure NSGA-II (Baseline)** |
 |--------|-------------------------|--------------------------------|------------------------------|
