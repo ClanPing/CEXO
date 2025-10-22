@@ -2,8 +2,8 @@
 This section separates into 4 main sections:
 - [Layout Configurations](#layout-configurations)
 - [Constraints](#-constraints)
-- [Objective functions](#-objective-functions)
-- [Behavioral descriptors](#-behavioral-descriptors)
+- [Objective Functions](#-objective-functions)
+- [Behavioral Descriptors](#-behavioral-descriptors)
   
 ---
 <h2 id="layout-configurations">🏗️ Layout Configurations</h2>
@@ -78,7 +78,7 @@ A layout violates this constraint if any two facilities have overlapping areas.
 $$V_{\mathrm{overlap}} = \sum_{i < j} A_{\mathrm{overlap}}(f_i, f_j)$$
 
 ---
-## 🎯 Objective functions
+## 🎯 Objective Functions
 ### 1) Safety compliance
 Measures hazard prevention and worker protection.
 
@@ -167,3 +167,108 @@ where $d_{o,entrance}$ = distance from office $o$ to nearest entrance
 Measures future flexibility, expansion capacity, and reconfiguration potential.
 
 $$O_3 = 0.4 \times A_{expansion} + 0.35 \times A_{redundancy} + 0.25 \times A_{reconfig}$$
+
+where:
+- $$A_{expansion}$$ = Expansion potential
+- $$A_{redundancy}$$ = Route redundancy
+- $$A_{reconfig}$$ = Reconfiguration ease
+
+**Overall Adaptability Interpretation**:
+- $O_3 = 1.0$ → Maximum flexibility, ample expansion space, easy reconfiguration
+- $O_3 = 0.7$ → Good adaptability with some constraints
+- $O_3 < 0.5$ → Rigid layout, limited future options
+
+**Function**: `calculate_layout_adaptability(facilities, entrances, config)`
+- Returns: `adaptability_score ∈ [0, 1]`
+
+#### a) Expansion potential
+Measures available free space for future facilities:
+
+$$A_{expansion} = \frac{n_{available\_cells}}{n_{usable\_cells}}$$
+
+where:
+- Uses 10×10 grid overlay on site
+- $n_{usable\_cells}$ = cells within boundary margins
+- $n_{available\_cells}$ = usable cells not occupied by facilities
+
+**Interpretation**: Higher score = more room for expansion
+
+#### b) Route redundancy
+Evaluates alternative path availability for critical facility pairs:
+
+$$A_{redundancy} = \frac{1}{n_{pairs}} \sum_{p \in \text{keyPairs}} \frac{1}{1 + 10 \times \text{Var}(d_p)}$$
+
+where:
+- $\text{keyPairs} = \{(\text{office} \to \text{core}), (\text{storage} \to \text{core}), (\text{crane} \to \text{storage})\}$
+- $\text{Var}(d_p)$ = variance of distances for multiple instances of pair type $p$
+
+**Interpretation**: Low variance = multiple similar-length paths = good redundancy
+
+#### c) Reconfiguration ease
+Tests how easily facilities can be relocated to alternative positions:
+
+$$A_{reconfig} = \frac{1}{n_{facilities}} \sum_{f \in \text{facilities}} \frac{n_{valid\_positions}}{20}$$
+
+where:
+- For each facility, 20 random alternative positions tested (within distance 0.5)
+- $n_{valid\_positions}$ = positions that satisfy constraints
+
+**Interpretation**: Higher score = more flexibility for future layout changes
+
+---
+## 🎨 Behavioral Descriptors
+### 1) Spatial organization
+Measures how facilities are distributed across the site:
+
+$$BD_1 = \frac{\bar{d}_{centroid}}{B}$$
+
+where:
+
+$$\bar{d}_{centroid} = \frac{1}{n} \sum_{i=1}^{n} \|\mathbf{p}_i - \mathbf{c}\|$$
+
+$$\mathbf{c} = \frac{1}{n}\sum_{i=1}^{n} \mathbf{p}_i \quad \text{(global centroid)}$$
+
+- $\mathbf{p}_i$ = center position of facility $i$
+- $B = 0.50$ = normalization bound (maximum expected mean distance)
+
+#### **Range**: [0, 1]
+| Value | Interpretation | Layout Pattern |
+|-------|---------------|----------------|
+| **0.0 - 0.3** | Very compact | All facilities clustered near site center |
+| **0.3 - 0.5** | Moderately compact | Facilities grouped with some spread |
+| **0.5 - 0.7** | Moderately distributed | Facilities spread across regions |
+| **0.7 - 1.0** | Highly spread | Facilities dispersed to site edges |
+
+#### **Function**: 
+- `calculate_compactness_vs_spread(facilities)` 
+- Alias: `calculate_spatial_organization(facilities)`
+
+### 2) Functional Integration
+Measures the spatial relationship between worker facilities and operational zones:
+
+$$BD_2 = \frac{\bar{d}_{separation}}{S}$$
+
+where:
+
+$$\bar{d}_{separation} = \frac{1}{n_{workers}} \sum_{w \in \text{workers}} \min_{o \in \text{operational}} \|\mathbf{p}_w - \mathbf{p}_o\|$$
+
+- $\text{workers} = \{\text{office}, \text{rest area}\}$
+- $\text{operational} = \{\text{core}, \text{storage}, \text{crane}\}$
+- $S = 0.30$ = normalization bound (maximum reasonable separation)
+
+#### **Range**: [0, 1]
+| Value | Interpretation | Layout Pattern |
+|-------|---------------|----------------|
+| **0.0 - 0.3** | Highly integrated | Workers embedded within operational zones |
+| **0.3 - 0.5** | Moderately integrated | Workers adjacent to operational areas |
+| **0.5 - 0.7** | Moderately separated | Clear buffer between workers and operations |
+| **0.7 - 1.0** | Strongly segregated | Workers isolated far from operations |
+
+#### **Function**: 
+- `calculate_worker_operational_separation(facilities)`
+
+#### **Inverted Version** (for alternative interpretation):
+$$BD_2' = 1 - BD_2$$
+
+- Function: `calculate_functional_integration(facilities)`
+- Higher $BD_2'$ = more integration (workers closer to operations)
