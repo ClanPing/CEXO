@@ -37,6 +37,7 @@ CSLP/
 │   └── nsga2_output/                # NSGA-II results
 
 [Others]
+│   ├── assets/                      # Medias used in the repository
 │   ├── environment.yml              # Conda environment specification
 │   ├── INFO.md                      # Project information
 │   └── READMME.md                   # This file
