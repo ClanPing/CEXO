@@ -362,7 +362,7 @@ def evaluate_individual(solution: List[Dict], entrances: List[Tuple[float, float
     }
     
     if calculate_behaviors:
-        from behavioral_descriptors import calculate_spatial_organization, calculate_functional_integration
+        from .behavioral_descriptors import calculate_spatial_organization, calculate_functional_integration
         spatial_org = calculate_spatial_organization(solution)
         functional_int = calculate_functional_integration(solution)
         result['behaviors'] = (spatial_org, functional_int)
