@@ -68,7 +68,7 @@ conda activate cslpelites
 
 ## Quick start
 
-### **CSLP Elite (Hybrid)**: `run_cslpelites.py`
+### **CSLP-Elites**: `run_cslpelites.py`
 
 Combines behavioral diversity exploration with multi-objective optimization.
 
