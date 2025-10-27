@@ -12,7 +12,7 @@ import random
 from typing import List, Dict, Tuple
 import numpy as np
 
-from config import FACILITY_SPECS, SiteConfig, rectangles_overlap
+from .config import FACILITY_SPECS, SiteConfig, rectangles_overlap
 
 # =============================================================================
 # ENTRANCE GENERATION

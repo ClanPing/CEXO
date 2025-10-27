@@ -13,16 +13,16 @@ This project presents CSLP-Elites, a hybrid optimization framework that integrat
 
 ## 📁 Project structure
 ```
-CSLP/
-[Core Modules]
+CSLP-Elites/
+│
+├── core/                            # Python package with reusable modules
+│   ├── __init__.py                  # Package exports
 │   ├── config.py                    # Configurations and data structures
 │   ├── objectives.py                # Objective functions for NSGA-II
 │   ├── behavioral_descriptors.py    # Behavioral descriptors for MAP-Elites
 │   ├── layout_generation.py         # Layout generation and genetic operators
-│   └── visualization.py             # Visualization and export functions
-
-[Algorithm Implementations]
-│   ├── cslpelites_algorithm.py       # CSLP Elite (MAP-Elites + NSGA-II)
+│   ├── visualization.py             # Visualization and export functions
+│   ├── cslpelites_algorithm.py      # CSLP Elite (MAP-Elites + NSGA-II)
 │   ├── mapelites_algorithm.py       # Pure MAP-Elites with scalar fitness
 │   └── nsga2_algorithm.py           # Pure NSGA-II multi-objective
 
@@ -40,7 +40,7 @@ CSLP/
 │   ├── assets/                      # Medias used in the repository
 │   ├── environment.yml              # Conda environment specification
 │   ├── INFO.md                      # Project information
-│   └── READMME.md                   # This file
+│   └── README.md                    # This file
 ```
 
 ## 📋 Project information
