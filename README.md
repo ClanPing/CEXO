@@ -109,7 +109,7 @@ python run_cslpelites.py --facilities 7 --iterations 25000 --grid-size 25 --pare
 - `--crane-safety F`: Crane safety distance (default: 0.30)
 
 **Output Options**:
-- `--output-dir DIR`: Output directory (default: `cslpelites_output`)
+- `--output-dir DIR`: Output directory (default: `output/cslpelites`)
 - `--export-count N`: Number of layouts to export (default: 25)
 - `--visualize`: Create visualizations (flag)
 - `--seed N`: Random seed (default: 42)
@@ -131,7 +131,7 @@ python run_cslpelites.py --seed 123 --facilities 6 --iterations 15000 --visualiz
 ```
 
 **Output Files** (example):
-- `cslpelites_output/`
+- `outut/cslpelites`
   - `cslpelite_layout_000.json` to `cslpelite_layout_024.json`: Individual layouts
   - `cslpelite_summary.json`: Overall statistics
   - `cslpelite_evaluation.json`: Archive performance metrics
@@ -158,6 +158,7 @@ python run_mapelites.py --safety-weight 0.6 --efficiency-weight 0.25 --adaptabil
 
 **Command-Line Arguments**:
 *(Similar to CSLP Elite, plus:)*
+- Default output directory: `output/mapelites`
 
 **Scalar Fitness Weighting**:
 - `--safety-weight F`: Weight for safety (default: 0.5)
@@ -178,7 +179,7 @@ python run_mapelites.py --safety-weight 0.33 --efficiency-weight 0.33 --adaptabi
 ```
 
 **Output Files**:
-- `mapelites_output/` (or `pure_mapelites_output/`)
+- `output/mapelites`
   - `mapelites_layout_000.json` to `mapelites_layout_024.json`
   - `mapelites_summary.json`
   - `mapelites_evaluation.json`
@@ -217,7 +218,7 @@ python run_nsga2.py --population 400 --generations 600 --visualize
 - `--min-entrances`, `--max-entrances`, `--margin`, `--entrance-clearance`, `--crane-safety`
 
 **Output Options**:
-- `--output-dir DIR`: Output directory (default: `nsga2_output`)
+- `--output-dir DIR`: Output directory (default: `output/nsga2`)
 - `--export-count N`: Number of layouts to export (default: 25)
 - `--visualize`, `--seed`, `--test`
 
@@ -237,7 +238,7 @@ python run_nsga2.py --facilities 8 --population 400 --generations 600 --visualiz
 ```
 
 **Output Files**:
-- `nsga2_output/`
+- `output/nsga2`
   - `nsga2_layout_000.json` to `nsga2_layout_024.json`
   - `nsga2_summary.json`
   - `nsga2_detailed_metrics.json`
