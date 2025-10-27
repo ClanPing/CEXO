@@ -26,15 +26,15 @@ CSLP-Elites/
 │   ├── mapelites_algorithm.py       # Pure MAP-Elites with scalar fitness
 │   └── nsga2_algorithm.py           # Pure NSGA-II multi-objective
 
+├── output/                          # Output directory (generated)
+│   ├── cslpelites/                  # CSLP Elite results
+│   ├── mapelites/                   # MAP-Elites results
+│   └── nsga2/                       # NSGA-II results
+
 [Runnable Scripts]
-│   ├── run_cslpelites.py             # Run CSLP Elite hybrid algorithm
+│   ├── run_cslpelites.py            # Run CSLP Elite hybrid algorithm
 │   ├── run_mapelites.py             # Run pure MAP-Elites
 │   └── run_nsga2.py                 # Run pure NSGA-II
-
-[Output Directories] (generated)
-│   ├── cslpelite_output/            # CSLP Elite results
-│   ├── mapelites_output/            # MAP-Elites results
-│   └── nsga2_output/                # NSGA-II results
 
 [Others]
 │   ├── assets/                      # Medias used in the repository
