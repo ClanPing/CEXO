@@ -16,7 +16,12 @@ import random
 from typing import List, Dict, Tuple
 import numpy as np
 
-from config import FACILITY_SPECS, SiteConfig, rectangles_overlap, calculate_overlap_area
+from .config import (
+    FACILITY_SPECS,
+    SiteConfig,
+    rectangles_overlap,
+    calculate_overlap_area,
+)
 
 # =============================================================================
 # OBJECTIVE FUNCTION 1: SAFETY & CONSTRAINT COMPLIANCE

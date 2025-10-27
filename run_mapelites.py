@@ -16,13 +16,16 @@ import argparse
 import time
 from pathlib import Path
 
-# Add current directory to path for imports
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-from config import SiteConfig, MapElitesConfig, generate_facility_mix
-from mapelites_algorithm import PureMapElitesOptimizer, evaluate_pure_mapelites_performance
-from visualization import create_pure_mapelites_visualizations, export_mapelites_results
-from behavioral_descriptors import analyze_behavioral_regions
+from core.config import SiteConfig, MapElitesConfig, generate_facility_mix
+from core.mapelites_algorithm import (
+    PureMapElitesOptimizer,
+    evaluate_pure_mapelites_performance,
+)
+from core.visualization import (
+    create_pure_mapelites_visualizations,
+    export_mapelites_results,
+)
+from core.behavioral_descriptors import analyze_behavioral_regions
 
 def main():
     """Main execution function"""

@@ -16,12 +16,9 @@ import argparse
 import time
 from pathlib import Path
 
-# Add current directory to path for imports
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-from config import SiteConfig, NSGA2Config, generate_facility_mix
-from nsga2_algorithm import PureNSGA2Optimizer, calculate_nsga2_metrics
-from visualization import create_nsga2_visualizations, export_nsga2_results
+from core.config import SiteConfig, NSGA2Config, generate_facility_mix
+from core.nsga2_algorithm import PureNSGA2Optimizer, calculate_nsga2_metrics
+from core.visualization import create_nsga2_visualizations, export_nsga2_results
 
 def main():
     """Main execution function"""

@@ -11,10 +11,14 @@ import random
 from typing import List, Dict, Tuple
 import numpy as np
 
-from config import Individual, SiteConfig, NSGA2Config
-from objectives import evaluate_individual
-from layout_generation import (generate_random_entrances, create_random_layout, 
-                              mutate_layout, crossover_layouts)
+from .config import Individual, SiteConfig, NSGA2Config
+from .objectives import evaluate_individual
+from .layout_generation import (
+    generate_random_entrances,
+    create_random_layout,
+    mutate_layout,
+    crossover_layouts,
+)
 
 # =============================================================================
 # NSGA-II CORE FUNCTIONS

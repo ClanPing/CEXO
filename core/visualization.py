@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle, Circle
 from mpl_toolkits.mplot3d import Axes3D
 
-from config import Individual, SiteConfig, FACILITY_SPECS, FACILITY_COLORS
+from .config import Individual, SiteConfig, FACILITY_SPECS, FACILITY_COLORS
 
 # =============================================================================
 # LAYOUT VISUALIZATION
