@@ -61,7 +61,7 @@ def main():
                        help="Crane safety distance")
     
     # Output options
-    parser.add_argument("--output-dir", type=str, default="cslpelite_output",
+    parser.add_argument("--output-dir", type=str, default="output/cslpelites",
                        help="Output directory")
     parser.add_argument("--export-count", type=int, default=25,
                        help="Number of layouts to export")
@@ -169,7 +169,7 @@ def main():
         print(f"\nExporting results to {args.output_dir}...")
         
         output_path = Path(args.output_dir)
-        output_path.mkdir(exist_ok=True)
+        output_path.mkdir(parents=True, exist_ok=True)
         
         exported = export_cslpelite_results(
             archive, site_config, args.output_dir,
