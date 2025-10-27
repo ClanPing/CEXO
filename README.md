@@ -22,12 +22,12 @@ CSLP/
 │   └── visualization.py             # Visualization and export functions
 
 [Algorithm Implementations]
-│   ├── cslpelite_algorithm.py       # CSLP Elite (MAP-Elites + NSGA-II)
+│   ├── cslpelites_algorithm.py       # CSLP Elite (MAP-Elites + NSGA-II)
 │   ├── mapelites_algorithm.py       # Pure MAP-Elites with scalar fitness
 │   └── nsga2_algorithm.py           # Pure NSGA-II multi-objective
 
 [Runnable Scripts]
-│   ├── run_cslpelite.py             # Run CSLP Elite hybrid algorithm
+│   ├── run_cslpelites.py             # Run CSLP Elite hybrid algorithm
 │   ├── run_mapelites.py             # Run pure MAP-Elites
 │   └── run_nsga2.py                 # Run pure NSGA-II
 
