@@ -240,7 +240,7 @@ def main():
             return obj
         
         evaluation_json = json.loads(json.dumps(evaluation_results, default=convert_numpy))
-        with open(os.path.join(args.output_dir, "pure_mapelites_evaluation.json"), 'w') as f:
+        with open(os.path.join(args.output_dir, "mapelites_evaluation.json"), 'w') as f:
             json.dump(evaluation_json, f, indent=2)
         
         with open(os.path.join(args.output_dir, "behavioral_analysis.json"), 'w') as f:
@@ -298,4 +298,5 @@ if __name__ == "__main__":
         print(f"\n✗ ERROR: {e}")
         import traceback
         traceback.print_exc()
+
         sys.exit(1)
