@@ -541,13 +541,13 @@ def create_pure_mapelites_visualizations(archive, config: SiteConfig, output_dir
     ax6.set_title('Results Summary', fontweight='bold')
     
     plt.tight_layout()
-    analysis_path = os.path.join(output_dir, "pure_mapelites_analysis.png")
+    analysis_path = os.path.join(output_dir, "mapelites_analysis.png")
     plt.savefig(analysis_path, dpi=150, bbox_inches='tight')
     plt.close()
     print(f"  Saved Pure MAP-Elites analysis: {analysis_path}")
     
     # Show diverse high-quality layouts
-    show_quality_layouts(all_individuals, config, output_dir, "pure_mapelites_layouts.png")
+    show_quality_layouts(all_individuals, config, output_dir, "mapelites_layouts.png")
 
 def create_pure_mapelites_grid_plot(ax, archive):
     """Create Pure MAP-Elites archive grid visualization"""
