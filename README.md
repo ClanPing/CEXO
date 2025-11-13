@@ -288,9 +288,11 @@ CSLP-Elites and MAP-Elites both populate a 20×20 behavioural grid, but with dif
 - **MAP-Elites** fills more cells (268) but includes many infeasible or unrealistic layouts.  
 - **CSLP-Elites** focuses on **feasible high-value regions**, producing **multiple Pareto-optimal solutions per cell**, offering meaningful trade-offs for decision-making.
 
-#### 🏗️ Layout Showcase
+#### 🏗️ Example Layout Showcase
 
-[IMAGE]
+| **CSLP-Elites** | **MAP-Elites** | **NSGA-II** |
+|-----------------|----------------|--------------|
+| <img src="assets/cslpelites_layouts.png" width="100%"> | <img src="assets/mapelites_layouts.png" width="100%"> | <img src="assets/nsga2_layouts.png" width="100%"> |
 
 A visual inspection of representative layouts highlights key differences:
 
