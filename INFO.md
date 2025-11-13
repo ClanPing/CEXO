@@ -10,6 +10,10 @@ Our model framework:
 [Insert figure of model]
 ```
 
+<p align="center">
+<img src="assets/model.png" alt="Workflow Overview" width="700"/>
+</p>
+
 This section separates into 4 main sections:
 - [Layout Configurations](#layout-configurations)
 - [Constraints](#-constraints)
