@@ -2,7 +2,7 @@
 **Hybrid Quality-Diversity Framework for Construction Site Layout Planning (CSLP)**
 This project presents CSLP-Elites, a hybrid optimization framework that integrates MAP-Elites an NSGA-II to generate diverse and high-performing construction site layouts.
 
-| [Poster](assets/poster.pdf) |
+| [Poster](assets/poster.pdf) | [Model](assets/model.png) |
 
 ## 🎯 Key features
 - **Three optimization algorithms** with comparative modes
