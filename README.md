@@ -281,7 +281,13 @@ This section summarises the comparative evaluation between **CSLP-Elites**, **MA
 
 #### 🪟 Behavioural-Archive Comparison
 
-[IMAGE]
+<div align="center">
+
+| **CSLP-Elites** | **MAP-Elites** |
+|-----------------|----------------|
+| <p align="center"><img src="assets/cslpelites_archive.png" width="260px"></p> | <p align="center"><img src="assets/mapelites_archive.png" width="260px"></p> |
+
+</div>
 
 CSLP-Elites and MAP-Elites both populate a 20×20 behavioural grid, but with different characteristics:
 
