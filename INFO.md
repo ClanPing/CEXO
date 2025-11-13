@@ -5,13 +5,12 @@ In CSLP-Elites, our goal is to **generate diverse and high-performing constructi
 
 - **Behavioural Descriptors (BDs)** describe how layouts differ in their spatial and functional organisation (e.g., compact vs spread, integrated vs segregated). They encourage exploration of the design space by preserving variation across behavioural dimensions.
 
-```
-Our model framework:
-[Insert figure of model]
-```
-
 <p align="center">
 <img src="assets/model.png" alt="Workflow Overview" width="700"/>
+</p>
+
+<p align="center">
+  <em>CSLP-Elites model</em>
 </p>
 
 This section separates into 4 main sections:
