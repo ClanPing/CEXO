@@ -246,17 +246,54 @@ python run_nsga2.py --facilities 8 --population 400 --generations 600 --visualiz
   - `nsga2_pareto_layouts.png`
 
 ---
+### Comparative Performance of CSLP-Elites vs Baseline Models
+This section summarises the comparative evaluation between **CSLP-Elites**, **MAP-Elites**, and **NSGA-II** under identical experimental settings:
+- **Problem setup:** 6 facilities, 20×20 behavioural grid (400 cells)  
+- **Objectives:** Safety, Efficiency, Adaptability  
+- **Iterations:** 15 000  
+- **Safety threshold:** ≥ 0.7
 
-### Comparative performance of CSLP-Elites against baseline models
+#### 📊 Algorithm Overview
 
-| Aspect | **CSLP Elite (Hybrid)** | **Pure MAP-Elites (Baseline)** | **Pure NSGA-II (Baseline)** |
-|--------|-------------------------|--------------------------------|------------------------------|
-| **Optimization Approach** | Multi-objective + Behavioral diversity | Scalar fitness + Behavioral diversity | Multi-objective only (no diversity) |
-| **Output Structure** | 2D behavioral grid of Pareto fronts | 2D behavioral grid of single solutions | Single Pareto front |
-| **Solution Count** | Up to 400×12 = **4,800 solutions** | Up to 400 solutions | ~100-200 solutions |
-| **Behavioral Space** | ✅ **Systematically explored** | ✅ Explored (scalar fitness) | ❌ Not considered |
-| **Multi-Objective** | ✅ **True Pareto optimization** | ❌ Weighted sum only | ✅ Pareto optimization |
-| **Diversity Mechanism** | ✅ **Behavioral + Pareto fronts** | Behavioral only | Crowding distance only |
-| **Computational Cost** | High (5-10 min) | Medium (3-5 min) | Low (2-4 min) |
-| **Solution Quality** | ✅ **Highest** - Pareto per cell | Medium - single best per cell | High - single Pareto front |
-| **Design Flexibility** | ✅ **Maximum** - diverse trade-offs | High - diverse but fixed weights | Low - single optimal set |
+| Aspect | **CSLP-Elites** | **MAP-Elites** | **NSGA-II** |
+|--------|---------------------------|-----------------------------|--------------------------|
+| **Optimisation Approach** | Multi-objective + behavioural diversity | Scalar fitness + behavioural diversity | Multi-objective only |
+| **Output Structure** | 2D behavioural **grid of Pareto fronts** | 2D behavioural grid (single elite per cell) | Single global Pareto front |
+| **Solution Count (observed)** | **535 solutions** (Pareto sets in 221 cells) | 268 solutions (1 per cell) | 195 Pareto solutions |
+| **Behavioural Exploration** | **Strong, structured** | High but unconstrained | Very limited |
+| **Constraint Handling** | **Strict (100% feasible)** | Moderate (92% feasible) | Weak (4% feasible) |
+| **Trade-off Representation** | **Multiple Pareto solutions per cell** | None (weighted sum) | Good, but only in objective space |
+| **Layout Diversity** | **High + safety-compliant** | High but often infeasible | Low (layouts look almost identical) |
+| **Best Use Case** | Balanced exploration + safe deployable layouts | Exploring wide spatial patterns | Pure objective optimisation |
+
+#### 📈 Quantitative Comparison
+
+| Algorithm | Feasible Solutions (%) | Behavioural Coverage (%) | Distinct Layouts | Avg Safety | Avg Efficiency | Avg Adaptability |
+|:-----------|:----------------------:|:-----------------------:|:----------------:|:-----------:|:---------------:|:----------------:|
+| **CSLP-Elites** | **100 (535/535)** | 55.3 | 221 | **0.989** | 0.695 | 0.515 |
+| **MAP-Elites** | 92 (247/268) | **67.0** | 268 | 0.897 | 0.733 | 0.545 |
+| **NSGA-II** | 4 (8/195) | ~7.6 (est.) | 195 | 0.859 | **0.863** | **0.588** |
+
+**Summary:**  
+- **CSLP-Elites** achieves the best overall balance: full feasibility, strong diversity, and meaningful Pareto trade-offs.  
+- **MAP-Elites** explores more behavioural cells but at the cost of constraint violations.  
+- **NSGA-II** optimises objectives well but lacks behavioural diversity and feasibility.
+
+#### 🪟 Behavioural-Archive Comparison
+
+[IMAGE]
+
+CSLP-Elites and MAP-Elites both populate a 20×20 behavioural grid, but with different characteristics:
+
+- **MAP-Elites** fills more cells (268) but includes many infeasible or unrealistic layouts.  
+- **CSLP-Elites** focuses on **feasible high-value regions**, producing **multiple Pareto-optimal solutions per cell**, offering meaningful trade-offs for decision-making.
+
+#### 🏗️ Layout Showcase
+
+[IMAGE]
+
+A visual inspection of representative layouts highlights key differences:
+
+- **NSGA-II** → produces nearly identical layouts with subtle coordinate shifts (low geometric variety).  
+- **MAP-Elites** → generates diverse layouts, but many violate safety constraints or contain overlaps.  
+- **CSLP-Elites** → delivers diverse **and** fully safety-compliant layouts, covering compact, moderate, and distributed patterns.
