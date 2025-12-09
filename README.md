@@ -2,7 +2,7 @@
 
 ![Python](https://img.shields.io/badge/Python-3.9%2B-blue)
 [![Poster](https://img.shields.io/badge/Poster-PDF-orange)](assets/poster.pdf.pdf)
-[![Model](https://img.shields.io/badge/Model-Preview-9cf)](assets.model.png)
+[![Model](https://img.shields.io/badge/Model-Preview-9cf)](assets/model.png)
 ![Paper](https://img.shields.io/badge/Paper-Preprint-blueviolet)
 [![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=flat&logo=streamlit&logoColor=white)](https://github.com/ClanPing/CSLP-Elites-App.git)
 ![License](https://img.shields.io/badge/License-MIT-green)
