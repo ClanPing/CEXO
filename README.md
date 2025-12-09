@@ -60,7 +60,7 @@ This section includes:
 - Objective Functions: Multi-objective formulations for safety, efficiency, and adaptability.
 - Behavioural Descriptors: Metrics defining diversity dimensions such as compactness–spread and worker–operational separation.
 
-## Installation
+## 📥 Installation
 
 Start by cloning this repository:
 ```bash
@@ -74,7 +74,7 @@ conda env create -f environment.yml
 conda activate cslpelites
 ```
 
-## Quick start
+## 🚀 Quick start
 
 ### **CSLP-Elites**: `run_cslpelites.py`
 
@@ -270,7 +270,7 @@ python run_nsga2.py --facilities 8 --population 400 --generations 600 --visualiz
 </details>
 
 ---
-### Comparative Performance of CSLP-Elites vs Baseline Models
+### 🧮 Comparative Performance of CSLP-Elites vs Baseline Models
 This section summarises the comparative evaluation between **CSLP-Elites**, **MAP-Elites**, and **NSGA-II** under identical experimental settings:
 - **Problem setup:** 6 facilities, 20×20 behavioural grid (400 cells)  
 - **Objectives:** Safety, Efficiency, Adaptability  
