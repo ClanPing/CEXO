@@ -1,4 +1,12 @@
 # CSLP-Elites
+
+![Python](https://img.shields.io/badge/Python-3.9%2B-blue)
+[![Poster](https://img.shields.io/badge/Poster-PDF-orange)](assets/poster.pdf.pdf)
+[![Model](https://img.shields.io/badge/Model-Preview-9cf)](assets.model.png)
+![Paper](https://img.shields.io/badge/Paper-Preprint-blueviolet)
+[![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=flat&logo=streamlit&logoColor=white)](https://github.com/ClanPing/CSLP-Elites-App.git)
+![License](https://img.shields.io/badge/License-MIT-green)
+
 **Hybrid Quality-Diversity Framework for Construction Site Layout Planning (CSLP)**
 This project presents CSLP-Elites, a hybrid optimization framework that integrates MAP-Elites an NSGA-II to generate diverse and high-performing construction site layouts.
 
