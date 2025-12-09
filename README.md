@@ -92,7 +92,10 @@ python run_cslpelites.py --test --visualize
 python run_cslpelites.py --facilities 7 --iterations 25000 --grid-size 25 --pareto-size 15 --visualize
 ```
 
-**Command-Line Arguments**:
+<details>
+<summary><span style="font-weight: bold;">
+Detailed command line arguments and outputs
+</span></summary>
 
 **Core Parameters**:
 - `--facilities N`: Number of facilities (3-8, default: 6)
@@ -147,6 +150,8 @@ python run_cslpelites.py --seed 123 --facilities 6 --iterations 15000 --visualiz
   - `cslpelite_analysis.png`: Multi-panel visualization
   - `cslpelite_layouts.png`: Layout gallery
 
+</details>
+
 ## Comparisons
 We compare CSLP-Elites with pure MAP-Elites, and pure NSGA-II.
 ### **Pure MAP-Elites**: `run_mapelites.py`
@@ -164,7 +169,11 @@ python run_mapelites.py --test --visualize
 python run_mapelites.py --safety-weight 0.6 --efficiency-weight 0.25 --adaptability-weight 0.15 --visualize
 ```
 
-**Command-Line Arguments**:
+<details>
+<summary><span style="font-weight: bold;">
+Detailed command line arguments and outputs
+</span></summary>
+
 *(Similar to CSLP Elite, plus:)*
 - Default output directory: `output/mapelites`
 
@@ -195,6 +204,8 @@ python run_mapelites.py --safety-weight 0.33 --efficiency-weight 0.33 --adaptabi
   - `mapelites_analysis.png`
   - `mapelites_layouts.png`
 
+</details>
+
 ### **Pure NSGA-II**: `run_nsga2.py`
 Multi-objective Pareto optimization only.
 
@@ -210,7 +221,10 @@ python run_nsga2.py --test --visualize
 python run_nsga2.py --population 400 --generations 600 --visualize
 ```
 
-**Command-Line Arguments**:
+<details>
+<summary><span style="font-weight: bold;">
+Detailed command line arguments and outputs
+</span></summary>
 
 **Core Parameters**:
 - `--facilities N`: Number of facilities (3-8, default: 6)
@@ -252,6 +266,8 @@ python run_nsga2.py --facilities 8 --population 400 --generations 600 --visualiz
   - `nsga2_detailed_metrics.json`
   - `nsga2_analysis.png`
   - `nsga2_pareto_layouts.png`
+
+</details>
 
 ---
 ### Comparative Performance of CSLP-Elites vs Baseline Models
