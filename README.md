@@ -76,7 +76,7 @@ conda activate cslpelites
 
 ## 🚀 Quick start
 
-### **CSLP-Elites**: `run_cslpelites.py`
+### 1️⃣ **CSLP-Elites**: `run_cslpelites.py`
 
 Combines behavioral diversity exploration with multi-objective optimization.
 
@@ -154,7 +154,7 @@ python run_cslpelites.py --seed 123 --facilities 6 --iterations 15000 --visualiz
 
 ## Comparisons
 We compare CSLP-Elites with pure MAP-Elites, and pure NSGA-II.
-### **Pure MAP-Elites**: `run_mapelites.py`
+### 2️⃣ **Pure MAP-Elites**: `run_mapelites.py`
 Behavioral diversity with scalar fitness.
 
 **Basic Usage**:
@@ -206,7 +206,7 @@ python run_mapelites.py --safety-weight 0.33 --efficiency-weight 0.33 --adaptabi
 
 </details>
 
-### **Pure NSGA-II**: `run_nsga2.py`
+### 3️⃣ **Pure NSGA-II**: `run_nsga2.py`
 Multi-objective Pareto optimization only.
 
 **Basic Usage**:
