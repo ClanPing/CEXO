@@ -333,7 +333,7 @@ A visual inspection of representative layouts highlights key differences:
 #### 🏗️ 3D Layout Showcase
 
 <p align="center">
-<img src="assets/views.png" alt="Workflow Overview" width="700"/>
+<img src="assets/views.png" alt="2D-to-3D layout view" width="800"/>
 </p>
 
 A 2D-to-3D transformation Streamlit application has been implemented. Please refer to:
