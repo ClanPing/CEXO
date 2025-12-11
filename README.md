@@ -318,7 +318,7 @@ CSLP-Elites and MAP-Elites both populate a 20×20 behavioural grid, but with dif
 - **MAP-Elites** fills more cells (268) but includes many infeasible or unrealistic layouts.  
 - **CSLP-Elites** focuses on **feasible high-value regions**, producing **multiple Pareto-optimal solutions per cell**, offering meaningful trade-offs for decision-making.
 
-#### 🏗️ Example Layout Showcase
+#### 🏗️ 2D Layout Showcase
 
 | **CSLP-Elites** | **MAP-Elites** | **NSGA-II** |
 |-----------------|----------------|--------------|
@@ -329,3 +329,13 @@ A visual inspection of representative layouts highlights key differences:
 - **NSGA-II** → produces nearly identical layouts with subtle coordinate shifts (low geometric variety).  
 - **MAP-Elites** → generates diverse layouts, but many violate safety constraints or contain overlaps.  
 - **CSLP-Elites** → delivers diverse **and** fully safety-compliant layouts, covering compact, moderate, and distributed patterns.
+
+#### 🏗️ 3D Layout Showcase
+
+<p align="center">
+<img src="assets/views.png" alt="Workflow Overview" width="700"/>
+</p>
+
+A 2D-to-3D transformation Streamlit application has been implemented. Please refer to:
+
+🔗 **Streamlit Dashboard Application for CSLP-Elites**: [https://github.com/ClanPing/CSLP-Elites-App.git]
