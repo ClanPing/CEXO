@@ -143,12 +143,17 @@ The v2 branch adds a practical Bulleen pathway for testing CEXO on a more constr
 - Road and access corridor exclusion zones
 - Export scaling through site width and length parameters
 
+Detailed notes and a convenience runner are available in [case_studies/bulleen](case_studies/bulleen/README.md).
+
 ```powershell
 # Bulleen practical-case smoke test
 python -X utf8 run_cexo.py --test --practical-bulleen --bulleen-boundary --bulleen-entrances --bulleen-roads --output output/bulleen_test
 
+# Same smoke test through the case-study runner
+python -X utf8 case_studies/bulleen/run_bulleen.py --test
+
 # Longer Bulleen run
-python -X utf8 run_cexo.py --practical-bulleen --bulleen-boundary --bulleen-entrances --bulleen-roads --iterations 15000 --initial-pop 500 --output output/bulleen
+python -X utf8 case_studies/bulleen/run_bulleen.py --iterations 15000 --initial-pop 500 --output output/bulleen
 ```
 
 Useful Bulleen options:
