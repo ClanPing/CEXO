@@ -1,4 +1,4 @@
-name: cslpelites
+name: cexo
 channels:
   - conda-forge
   - defaults
@@ -9,3 +9,6 @@ dependencies:
   - pip
 
   - pip:
+      - torch>=2.0.0
+      - tqdm>=4.62.0
+      - scikit-learn>=1.0.0

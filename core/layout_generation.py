@@ -12,7 +12,23 @@ import random
 from typing import List, Dict, Tuple
 import numpy as np
 
-from .config import FACILITY_SPECS, SiteConfig, rectangles_overlap
+from .config import (
+    FACILITY_SPECS,
+    FACILITY_CLEARANCE_BUFFER,
+    SiteConfig,
+    facility_within_site_boundary,
+    get_facility_dimensions,
+    get_site_bounds,
+    rectangles_overlap,
+)
+
+
+def random_rotation_for_facility(facility_type: str) -> int:
+    """Choose a discrete orientation for rectangular facilities."""
+    spec = FACILITY_SPECS[facility_type]
+    if abs(spec["w"] - spec["d"]) < 1e-9:
+        return 0
+    return random.choice([0, 90])
 
 # =============================================================================
 # ENTRANCE GENERATION
@@ -20,6 +36,9 @@ from .config import FACILITY_SPECS, SiteConfig, rectangles_overlap
 
 def generate_random_entrances(config: SiteConfig, seed: int = None) -> List[Tuple[float, float]]:
     """Generate random entrance locations"""
+    if getattr(config, "fixed_entrances", None):
+        return config.fixed_entrances[:]
+
     if seed is not None:
         rng = random.Random(seed)
     else:
@@ -71,49 +90,70 @@ def generate_random_entrances(config: SiteConfig, seed: int = None) -> List[Tupl
 # FACILITY PLACEMENT
 # =============================================================================
 
-def create_random_layout(facility_types: List[str], boundary_margin: float) -> List[Dict]:
+def create_random_layout(facility_types: List[str], boundary_margin: float,
+                         config: SiteConfig = None) -> List[Dict]:
     """Create random layout with sequential placement"""
     facilities = []
+    site_config = config or SiteConfig(boundary_margin=boundary_margin)
     
     priority_order = ["office", "rest_area", "core", "storage", "crane"]
     sorted_types = sorted(facility_types, 
                          key=lambda t: priority_order.index(t) if t in priority_order else len(priority_order))
     
     for ftype in sorted_types:
-        facility = create_random_facility(ftype, boundary_margin, facilities)
+        facility = create_random_facility(ftype, boundary_margin, facilities, site_config)
         facilities.append(facility)
     
     return facilities
 
 def create_random_facility(facility_type: str, boundary_margin: float, 
-                          existing_facilities: List[Dict] = None) -> Dict:
+                          existing_facilities: List[Dict] = None,
+                          config: SiteConfig = None) -> Dict:
     """Create random facility with overlap avoidance"""
     if existing_facilities is None:
         existing_facilities = []
     
-    spec = FACILITY_SPECS[facility_type]
-    half_w, half_h = spec["w"]/2, spec["d"]/2
+    site_config = config or SiteConfig(boundary_margin=boundary_margin)
+    rotation = random_rotation_for_facility(facility_type)
+    probe_facility = {"type": facility_type, "center": (0.5, 0.5), "rotation": rotation}
+    w, d = get_facility_dimensions(probe_facility)
+    half_w, half_h = w/2, d/2
     
-    safety_buffer = 0.02
+    safety_buffer = FACILITY_CLEARANCE_BUFFER
     safe_margin = boundary_margin + max(half_w, half_h) + safety_buffer
-    min_coord = safe_margin
-    max_coord = 1.0 - safe_margin
+    site_min_x, site_max_x, site_min_y, site_max_y = get_site_bounds(site_config)
+    min_x = site_min_x + safe_margin
+    max_x = site_max_x - safe_margin
+    min_y = site_min_y + safe_margin
+    max_y = site_max_y - safe_margin
     
-    if min_coord >= max_coord:
-        min_coord = boundary_margin + half_w + 0.01
-        max_coord = 1.0 - boundary_margin - half_w - 0.01
-        if min_coord >= max_coord:
-            min_coord = 0.1
-            max_coord = 0.9
+    if min_x >= max_x:
+        min_x = site_min_x + boundary_margin + half_w + 0.01
+        max_x = site_max_x - boundary_margin - half_w - 0.01
+    if min_y >= max_y:
+        min_y = site_min_y + boundary_margin + half_h + 0.01
+        max_y = site_max_y - boundary_margin - half_h - 0.01
+
+    worker_types = {"office", "rest_area"}
+    worker_facilities = [f for f in existing_facilities if f["type"] in worker_types]
+    worker_anchor = None
+    if facility_type in worker_types and worker_facilities:
+        worker_anchor = np.mean([np.array(f["center"]) for f in worker_facilities], axis=0)
     
     for attempt in range(100):
-        x = random.uniform(min_coord, max_coord)
-        y = random.uniform(min_coord, max_coord)
+        if worker_anchor is not None and attempt < 70:
+            # Offices and rest areas are usually organised as one support zone.
+            x = random.gauss(worker_anchor[0], 0.055)
+            y = random.gauss(worker_anchor[1], 0.055)
+            x = max(min_x, min(x, max_x))
+            y = max(min_y, min(y, max_y))
+        else:
+            x = random.uniform(min_x, max_x)
+            y = random.uniform(min_y, max_y)
         
-        candidate = {"type": facility_type, "center": (x, y)}
+        candidate = {"type": facility_type, "center": (x, y), "rotation": rotation}
         
-        if (x - half_w < boundary_margin + 0.01 or x + half_w > 1.0 - boundary_margin - 0.01 or
-            y - half_h < boundary_margin + 0.01 or y + half_h > 1.0 - boundary_margin - 0.01):
+        if not facility_within_site_boundary(candidate, site_config, margin=0.01):
             continue
         
         has_overlap = any(rectangles_overlap(candidate, existing) 
@@ -139,24 +179,47 @@ def create_random_facility(facility_type: str, boundary_margin: float,
                 push_x = x + dx * push_distance
                 push_y = y + dy * push_distance
                 
-                x = max(min_coord, min(push_x, max_coord))
-                y = max(min_coord, min(push_y, max_coord))
+                x = max(min_x, min(push_x, max_x))
+                y = max(min_y, min(push_y, max_y))
     
-    x = max(min_coord, min(random.uniform(min_coord, max_coord), max_coord))
-    y = max(min_coord, min(random.uniform(min_coord, max_coord), max_coord))
-    
-    return {"type": facility_type, "center": (x, y)}
+    best_candidate = None
+    best_overlap_count = float('inf')
+    for _ in range(1000):
+        x = random.uniform(min_x, max_x)
+        y = random.uniform(min_y, max_y)
+        candidate = {"type": facility_type, "center": (x, y), "rotation": rotation}
+        if not facility_within_site_boundary(candidate, site_config, margin=0.01):
+            continue
 
-def create_targeted_layout(facility_types: List[str], boundary_margin: float, 
+        overlap_count = sum(1 for existing in existing_facilities if rectangles_overlap(candidate, existing))
+        if overlap_count < best_overlap_count:
+            best_candidate = candidate
+            best_overlap_count = overlap_count
+            if overlap_count == 0:
+                return candidate
+
+    if best_candidate is not None:
+        return best_candidate
+
+    # Last-resort fallback for severely constrained polygons.
+    centroid_x = sum(p[0] for p in site_config.boundary_polygon) / len(site_config.boundary_polygon) if site_config.boundary_polygon else 0.5
+    centroid_y = sum(p[1] for p in site_config.boundary_polygon) / len(site_config.boundary_polygon) if site_config.boundary_polygon else 0.5
+    return {"type": facility_type, "center": (centroid_x, centroid_y), "rotation": rotation}
+
+def create_targeted_layout(facility_types: List[str], boundary_margin: float,
                           target_spatial_org: float = 0.5, 
-                          target_functional_int: float = 0.5) -> List[Dict]:
+                          target_functional_int: float = 0.5,
+                          config: SiteConfig = None) -> List[Dict]:
     """Create layout targeting specific behavioral descriptors"""
     layout = []
+    site_config = config or SiteConfig(boundary_margin=boundary_margin)
     center = np.array([0.5, 0.5])
     
     for i, facility_type in enumerate(facility_types):
-        spec = FACILITY_SPECS[facility_type]
-        half_w, half_h = spec["w"]/2, spec["d"]/2
+        rotation = random_rotation_for_facility(facility_type)
+        probe_facility = {"type": facility_type, "center": (0.5, 0.5), "rotation": rotation}
+        w, d = get_facility_dimensions(probe_facility)
+        half_w, half_h = w/2, d/2
         
         # For spatial organization: low = centralized, high = distributed
         if target_spatial_org < 0.3:  # Centralized
@@ -177,17 +240,22 @@ def create_targeted_layout(facility_types: List[str], boundary_margin: float,
             y = random.uniform(0.3, 0.7)
         
         # Ensure within boundaries
-        min_x = boundary_margin + half_w
-        max_x = 1.0 - boundary_margin - half_w
-        min_y = boundary_margin + half_h
-        max_y = 1.0 - boundary_margin - half_h
+        site_min_x, site_max_x, site_min_y, site_max_y = get_site_bounds(site_config)
+        min_x = site_min_x + boundary_margin + half_w
+        max_x = site_max_x - boundary_margin - half_w
+        min_y = site_min_y + boundary_margin + half_h
+        max_y = site_max_y - boundary_margin - half_h
         
         x = max(min_x, min(x, max_x))
         y = max(min_y, min(y, max_y))
+
+        candidate = {"type": facility_type, "center": (x, y), "rotation": rotation}
+        if not facility_within_site_boundary(candidate, site_config, margin=0.01):
+            candidate = create_random_facility(facility_type, boundary_margin, layout, site_config)
         
-        layout.append({"type": facility_type, "center": (x, y)})
+        layout.append(candidate)
     
-    # Adjust for functional integration
+    # Adjust for worker-operational separation.
     operational_types = {"core", "crane", "storage"}
     support_types = {"office", "rest_area"}
     
@@ -196,7 +264,28 @@ def create_targeted_layout(facility_types: List[str], boundary_margin: float,
     support_facilities = [f for f in layout if f["type"] in support_types]
     
     if target_functional_int < 0.3 and operational_facilities and support_facilities:
-        # Segregated: move support facilities to opposite side
+        # Embedded: move support facilities near the operational centroid.
+        operational_centroid = np.mean([np.array(f["center"]) for f in operational_facilities], axis=0)
+        for facility in support_facilities:
+            new_x = operational_centroid[0] + random.uniform(-0.08, 0.08)
+            new_y = operational_centroid[1] + random.uniform(-0.08, 0.08)
+
+            w, d = get_facility_dimensions(facility)
+            half_w, half_h = w/2, d/2
+            site_min_x, site_max_x, site_min_y, site_max_y = get_site_bounds(site_config)
+            min_x = site_min_x + boundary_margin + half_w
+            max_x = site_max_x - boundary_margin - half_w
+            min_y = site_min_y + boundary_margin + half_h
+            max_y = site_max_y - boundary_margin - half_h
+
+            old_center = facility["center"]
+            facility["center"] = (max(min_x, min(new_x, max_x)),
+                                max(min_y, min(new_y, max_y)))
+            if not facility_within_site_boundary(facility, site_config, margin=0.01):
+                facility["center"] = old_center
+
+    elif target_functional_int > 0.7 and operational_facilities and support_facilities:
+        # Segregated: move support facilities toward the opposite side.
         for facility in support_facilities:
             if facility["center"][0] < 0.5:
                 new_x = random.uniform(0.6, 0.9)
@@ -204,15 +293,19 @@ def create_targeted_layout(facility_types: List[str], boundary_margin: float,
                 new_x = random.uniform(0.1, 0.4)
             new_y = facility["center"][1] + random.uniform(-0.1, 0.1)
             
-            spec = FACILITY_SPECS[facility["type"]]
-            half_w, half_h = spec["w"]/2, spec["d"]/2
-            min_x = boundary_margin + half_w
-            max_x = 1.0 - boundary_margin - half_w
-            min_y = boundary_margin + half_h
-            max_y = 1.0 - boundary_margin - half_h
+            w, d = get_facility_dimensions(facility)
+            half_w, half_h = w/2, d/2
+            site_min_x, site_max_x, site_min_y, site_max_y = get_site_bounds(site_config)
+            min_x = site_min_x + boundary_margin + half_w
+            max_x = site_max_x - boundary_margin - half_w
+            min_y = site_min_y + boundary_margin + half_h
+            max_y = site_max_y - boundary_margin - half_h
             
-            facility["center"] = (max(min_x, min(new_x, max_x)), 
+            old_center = facility["center"]
+            facility["center"] = (max(min_x, min(new_x, max_x)),
                                 max(min_y, min(new_y, max_y)))
+            if not facility_within_site_boundary(facility, site_config, margin=0.01):
+                facility["center"] = old_center
     
     return layout
 
@@ -220,19 +313,25 @@ def create_targeted_layout(facility_types: List[str], boundary_margin: float,
 # LAYOUT MUTATIONS
 # =============================================================================
 
-def mutate_layout(layout: List[Dict], boundary_margin: float, 
-                 p_mut: float = 0.4, sigma: float = 0.04) -> List[Dict]:
+def mutate_layout(layout: List[Dict], boundary_margin: float,
+                 p_mut: float = 0.4, sigma: float = 0.04,
+                 config: SiteConfig = None) -> List[Dict]:
     """Enhanced mutation with constraint enforcement"""
     result = []
-    safety_buffer = 0.02
+    site_config = config or SiteConfig(boundary_margin=boundary_margin)
+    safety_buffer = FACILITY_CLEARANCE_BUFFER
     effective_margin = boundary_margin + safety_buffer
     
     for i, facility in enumerate(layout):
         if random.random() < p_mut:
             x, y = facility["center"]
             ftype = facility["type"]
-            spec = FACILITY_SPECS[ftype]
-            half_w, half_h = spec["w"]/2, spec["d"]/2
+            candidate_base = dict(facility)
+            if random.random() < 0.2:
+                current_rotation = int(candidate_base.get("rotation", 0)) % 180
+                candidate_base["rotation"] = 90 if current_rotation == 0 else 0
+            w, d = get_facility_dimensions(candidate_base)
+            half_w, half_h = w/2, d/2
             
             best_candidate = facility
             best_score = float('inf')
@@ -241,23 +340,21 @@ def mutate_layout(layout: List[Dict], boundary_margin: float,
                 new_x = x + random.gauss(0.0, sigma)
                 new_y = y + random.gauss(0.0, sigma)
                 
-                min_x = effective_margin + half_w
-                max_x = 1.0 - effective_margin - half_w
-                min_y = effective_margin + half_h
-                max_y = 1.0 - effective_margin - half_h
+                site_min_x, site_max_x, site_min_y, site_max_y = get_site_bounds(site_config)
+                min_x = site_min_x + effective_margin + half_w
+                max_x = site_max_x - effective_margin - half_w
+                min_y = site_min_y + effective_margin + half_h
+                max_y = site_max_y - effective_margin - half_h
                 
                 new_x = max(min_x, min(new_x, max_x))
                 new_y = max(min_y, min(new_y, max_y))
                 
-                candidate = {"type": ftype, "center": (new_x, new_y)}
+                candidate = {"type": ftype, "center": (new_x, new_y), "rotation": candidate_base.get("rotation", 0)}
                 
                 overlap_count = sum(1 for j, other_facility in enumerate(result + layout[i+1:])
                                   if rectangles_overlap(candidate, other_facility))
                 
-                boundary_violation = 0
-                if (new_x - half_w < effective_margin or new_x + half_w > 1.0 - effective_margin or
-                    new_y - half_h < effective_margin or new_y + half_h > 1.0 - effective_margin):
-                    boundary_violation = 1
+                boundary_violation = 0 if facility_within_site_boundary(candidate, site_config) else 1
                 
                 score = boundary_violation * 100 + overlap_count
                 
@@ -275,9 +372,11 @@ def mutate_layout(layout: List[Dict], boundary_margin: float,
     return result
 
 def mutate_toward_behavioral_diversity(layout: List[Dict], boundary_margin: float,
-                                     current_spatial_org: float, current_functional_int: float) -> List[Dict]:
+                                     current_spatial_org: float, current_functional_int: float,
+                                     config: SiteConfig = None) -> List[Dict]:
     """Mutation that pushes solutions toward different behavioral regions"""
     result = []
+    site_config = config or SiteConfig(boundary_margin=boundary_margin)
     
     # Determine target behavioral region (opposite quadrant)
     target_spatial_org = 1.0 - current_spatial_org + random.uniform(-0.2, 0.2)
@@ -288,8 +387,12 @@ def mutate_toward_behavioral_diversity(layout: List[Dict], boundary_margin: floa
     
     for facility in layout:
         if random.random() < 0.4:  # 40% chance to modify each facility
-            spec = FACILITY_SPECS[facility["type"]]
-            half_w, half_h = spec["w"]/2, spec["d"]/2
+            candidate_base = dict(facility)
+            if random.random() < 0.2:
+                current_rotation = int(candidate_base.get("rotation", 0)) % 180
+                candidate_base["rotation"] = 90 if current_rotation == 0 else 0
+            w, d = get_facility_dimensions(candidate_base)
+            half_w, half_h = w/2, d/2
             
             # Behavioral-directed position adjustment
             x, y = facility["center"]
@@ -313,15 +416,20 @@ def mutate_toward_behavioral_diversity(layout: List[Dict], boundary_margin: floa
             new_y = y + adjustment[1] + random.gauss(0, 0.03)
             
             # Boundary constraints
-            min_x = boundary_margin + half_w
-            max_x = 1.0 - boundary_margin - half_w
-            min_y = boundary_margin + half_h
-            max_y = 1.0 - boundary_margin - half_h
+            site_min_x, site_max_x, site_min_y, site_max_y = get_site_bounds(site_config)
+            min_x = site_min_x + boundary_margin + half_w
+            max_x = site_max_x - boundary_margin - half_w
+            min_y = site_min_y + boundary_margin + half_h
+            max_y = site_max_y - boundary_margin - half_h
             
             new_x = max(min_x, min(new_x, max_x))
             new_y = max(min_y, min(new_y, max_y))
             
-            result.append({"type": facility["type"], "center": (new_x, new_y)})
+            candidate = {"type": facility["type"], "center": (new_x, new_y), "rotation": candidate_base.get("rotation", 0)}
+            if facility_within_site_boundary(candidate, site_config):
+                result.append(candidate)
+            else:
+                result.append(dict(facility))
         else:
             result.append(dict(facility))
     
@@ -341,8 +449,8 @@ def crossover_layouts(layout1: List[Dict], layout2: List[Dict],
     for i, (f1, f2) in enumerate(zip(layout1, layout2)):
         if f1["type"] == f2["type"]:
             if random.random() < p_swap:
-                child1.append({"type": f1["type"], "center": f2["center"]})
-                child2.append({"type": f2["type"], "center": f1["center"]})
+                child1.append({"type": f1["type"], "center": f2["center"], "rotation": f2.get("rotation", 0)})
+                child2.append({"type": f2["type"], "center": f1["center"], "rotation": f1.get("rotation", 0)})
             else:
                 child1.append(dict(f1))
                 child2.append(dict(f2))
@@ -360,13 +468,13 @@ def repair_layout_constraints(layout: List[Dict], boundary_margin: float,
                              entrances: List[Tuple[float, float]], config: SiteConfig) -> List[Dict]:
     """Repair layout to satisfy all constraints with minimal behavioral change"""
     repaired_layout = []
-    safety_buffer = 0.01
+    safety_buffer = FACILITY_CLEARANCE_BUFFER
     effective_margin = boundary_margin + safety_buffer
     
     for i, facility in enumerate(layout):
         ftype = facility["type"]
-        spec = FACILITY_SPECS[ftype]
-        half_w, half_h = spec["w"]/2, spec["d"]/2
+        w, d = get_facility_dimensions(facility)
+        half_w, half_h = w/2, d/2
         
         # Try to repair the current position
         x, y = facility["center"]
@@ -385,23 +493,23 @@ def repair_layout_constraints(layout: List[Dict], boundary_margin: float,
                 test_x = x + radius * math.cos(angle)
                 test_y = y + radius * math.sin(angle)
             
-            # Ensure within boundaries
-            min_x = effective_margin + half_w
-            max_x = 1.0 - effective_margin - half_w
-            min_y = effective_margin + half_h
-            max_y = 1.0 - effective_margin - half_h
+            # Ensure within site bounding box before polygon validation
+            site_min_x, site_max_x, site_min_y, site_max_y = get_site_bounds(config)
+            min_x = site_min_x + effective_margin + half_w
+            max_x = site_max_x - effective_margin - half_w
+            min_y = site_min_y + effective_margin + half_h
+            max_y = site_max_y - effective_margin - half_h
             
             test_x = max(min_x, min(test_x, max_x))
             test_y = max(min_y, min(test_y, max_y))
             
-            test_facility = {"type": ftype, "center": (test_x, test_y)}
+            test_facility = {"type": ftype, "center": (test_x, test_y), "rotation": facility.get("rotation", 0)}
             
             # Count violations with adjusted penalties
             violations = 0
             
             # Check boundary violations
-            if (test_x - half_w < effective_margin or test_x + half_w > 1.0 - effective_margin or
-                test_y - half_h < effective_margin or test_y + half_h > 1.0 - effective_margin):
+            if not facility_within_site_boundary(test_facility, config):
                 violations += 3
             
             # Check overlaps with already placed facilities
@@ -434,7 +542,7 @@ def repair_layout_constraints(layout: List[Dict], boundary_margin: float,
                     break
         
         # Add the best position found
-        repaired_facility = {"type": ftype, "center": best_position}
+        repaired_facility = {"type": ftype, "center": best_position, "rotation": facility.get("rotation", 0)}
         repaired_layout.append(repaired_facility)
     
     return repaired_layout

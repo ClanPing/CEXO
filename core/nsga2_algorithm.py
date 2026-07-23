@@ -147,7 +147,7 @@ class PureNSGA2Optimizer:
         print("Initializing diverse population...")
         for i in range(population_size):
             entrances = generate_random_entrances(self.site_config, seed=self.site_config.seed + i)
-            solution = create_random_layout(self.facility_types, self.site_config.boundary_margin)
+            solution = create_random_layout(self.facility_types, self.site_config.boundary_margin, self.site_config)
             individual = self.evaluate_solution(solution, entrances)
             population.append(individual)
             
@@ -171,7 +171,7 @@ class PureNSGA2Optimizer:
                 
                 # Choose one child and mutate it
                 child_solution = random.choice([child1_solution, child2_solution])
-                child_solution = mutate_layout(child_solution, self.site_config.boundary_margin)
+                child_solution = mutate_layout(child_solution, self.site_config.boundary_margin, config=self.site_config)
                 
                 # Use parent's entrances or generate new ones
                 if random.random() < 0.8:
@@ -183,7 +183,7 @@ class PureNSGA2Optimizer:
             else:  # Mutation only
                 parent = select_parents(population, self.nsga2_config.tournament_size)
                 child_solution = mutate_layout(parent.solution, self.site_config.boundary_margin, 
-                                             p_mut=0.6)
+                                             p_mut=0.6, config=self.site_config)
                 
                 if random.random() < 0.2:
                     child_entrances = generate_random_entrances(
