@@ -135,35 +135,7 @@ python -X utf8 run_cexo.py --facilities 6 --iterations 15000 --initial-pop 500 -
 
 ## Bulleen Case Study
 
-The v2 branch adds a practical Bulleen pathway for testing CEXO on a more constrained and realistic site setup. This includes:
-
-- Fixed or sampled practical facility mixes
-- Approximate irregular site boundary
-- Fixed entrance/access points
-- Road and access corridor exclusion zones
-- Export scaling through site width and length parameters
-
-Detailed notes and a convenience runner are available in [case_studies/bulleen](case_studies/bulleen/README.md).
-
-```powershell
-# Bulleen practical-case smoke test
-python -X utf8 run_cexo.py --test --practical-bulleen --bulleen-boundary --bulleen-entrances --bulleen-roads --output output/bulleen_test
-
-# Same smoke test through the case-study runner
-python -X utf8 case_studies/bulleen/run_bulleen.py --test
-
-# Longer Bulleen run
-python -X utf8 case_studies/bulleen/run_bulleen.py --iterations 15000 --initial-pop 500 --output output/bulleen
-```
-
-Useful Bulleen options:
-
-- `--practical-bulleen`: Use the fixed Bulleen practical-case facility mix
-- `--sample-bulleen`: Sample facility counts from Bulleen practical-case ranges
-- `--bulleen-boundary`: Use the approximate irregular Bulleen site polygon
-- `--bulleen-entrances`: Use fixed Bulleen entrance/access points
-- `--bulleen-roads`: Use approximate road/access corridors as exclusion zones
-- `--site-width-m F` and `--site-length-m F`: Export dimensions for scaled downstream visualization
+CEXO v2 includes a Bulleen practical case study for testing the optimizer with an approximate irregular site boundary, fixed access points, road/access exclusions, and practical facility mixes. For the detailed setup and runnable commands, see [case_studies/bulleen](case_studies/bulleen/README.md).
 
 ## Baseline Comparisons
 
