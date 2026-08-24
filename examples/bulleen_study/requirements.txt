@@ -1,0 +1,13 @@
+# Requirements for Autoencoder-Based Behavioral Descriptors
+
+# Core dependencies (existing)
+numpy>=1.21.0
+matplotlib>=3.4.0
+
+# Deep Learning (new)
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Optional but recommended
+tqdm>=4.62.0  # Progress bars for training
+scikit-learn>=1.0.0  # For additional analysis

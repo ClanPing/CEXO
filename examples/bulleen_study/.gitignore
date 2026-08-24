@@ -41,10 +41,6 @@ pure_mapelites_output/
 mapelites_output/
 nsga2_output/
 
-# Streamlit apps are published in a separate repository
-streamlit_app/
-streamlit_bulleen/
-
 # Jupyter Notebook
 .ipynb_checkpoints
 *.ipynb

@@ -19,6 +19,8 @@ import numpy as np
 from .config import (
     FACILITY_SPECS,
     SiteConfig,
+    facility_within_site_boundary,
+    get_facility_dimensions,
     rectangles_overlap,
     calculate_overlap_area,
 )
@@ -39,17 +41,19 @@ def calculate_safety_compliance(facilities: List[Dict], entrances: List[Tuple[fl
     
     for i, facility in enumerate(facilities):
         x, y = facility["center"]
-        spec = FACILITY_SPECS[facility["type"]]
-        half_w, half_h = spec["w"]/2, spec["d"]/2
+        w, d = get_facility_dimensions(facility)
+        half_w, half_h = w/2, d/2
         
-        # Calculate how far outside boundaries (if any)
-        left_violation = max(0, margin - (x - half_w))
-        right_violation = max(0, (x + half_w) - (1.0 - margin))
-        bottom_violation = max(0, margin - (y - half_h))
-        top_violation = max(0, (y + half_h) - (1.0 - margin))
-        
-        total_violation = left_violation + right_violation + bottom_violation + top_violation
-        
+        if config.boundary_polygon:
+            total_violation = 0.0 if facility_within_site_boundary(facility, config, margin=0.01) else 0.1
+        else:
+            # Calculate how far outside boundaries (if any)
+            left_violation = max(0, margin - (x - half_w))
+            right_violation = max(0, (x + half_w) - (1.0 - margin))
+            bottom_violation = max(0, margin - (y - half_h))
+            top_violation = max(0, (y + half_h) - (1.0 - margin))
+            total_violation = left_violation + right_violation + bottom_violation + top_violation
+
         if total_violation > 0:
             boundary_violations += 1
             boundary_severity += total_violation
@@ -71,8 +75,10 @@ def calculate_safety_compliance(facilities: List[Dict], entrances: List[Tuple[fl
                 total_overlap_area += overlap_area
                 violations.append(f"overlap_{i}_{j}")
     
-    # Graduated overlap penalty: small overlaps get smaller penalties
-    overlap_penalty = min(1.0, (overlap_count * 0.15) + (total_overlap_area * 3.0))
+    # Module layouts can include 20+ small facilities, so overlap count is
+    # normalized by layout size and area is weighted more than raw pair count.
+    overlap_pair_ratio = overlap_count / max(1, len(facilities))
+    overlap_penalty = min(1.0, (overlap_pair_ratio * 0.8) + (total_overlap_area * 20.0))
     overlap_score = max(0.0, 1.0 - overlap_penalty)
     
     # Critical safety violations (30%) - Graduated by proximity to danger
@@ -141,6 +147,80 @@ def calculate_safety_compliance(facilities: List[Dict], entrances: List[Tuple[fl
 # OBJECTIVE FUNCTION 2: OPERATIONAL EFFICIENCY
 # =============================================================================
 
+def calculate_worker_facility_clustering(facility_positions: Dict[str, List[np.ndarray]]) -> float:
+    """Reward offices and rest areas forming a compact worker-support cluster."""
+    worker_positions = facility_positions.get("office", []) + facility_positions.get("rest_area", [])
+    if len(worker_positions) < 2:
+        return 0.5
+
+    worker_centroid = np.mean(worker_positions, axis=0)
+    mean_cluster_radius = np.mean([
+        np.linalg.norm(pos - worker_centroid)
+        for pos in worker_positions
+    ])
+    compactness_score = max(0.0, 1.0 - mean_cluster_radius / 0.16)
+
+    # Ground-truth layouts tend to intermix offices and rest areas in one support
+    # zone, so each module should have the other worker type nearby where possible.
+    cross_type_score = 0.5
+    if facility_positions.get("office") and facility_positions.get("rest_area"):
+        nearest_cross_distances = []
+        for office_pos in facility_positions["office"]:
+            nearest_cross_distances.append(min(
+                np.linalg.norm(office_pos - rest_pos)
+                for rest_pos in facility_positions["rest_area"]
+            ))
+        for rest_pos in facility_positions["rest_area"]:
+            nearest_cross_distances.append(min(
+                np.linalg.norm(rest_pos - office_pos)
+                for office_pos in facility_positions["office"]
+            ))
+        avg_cross_distance = np.mean(nearest_cross_distances)
+        cross_type_score = max(0.0, 1.0 - avg_cross_distance / 0.14)
+
+    return float(np.clip(0.65 * compactness_score + 0.35 * cross_type_score, 0.0, 1.0))
+
+
+def point_to_facility_rect_distance(point: np.ndarray, facility: Dict) -> float:
+    """Distance from a point to the nearest point on a facility rectangle."""
+    x, y = facility["center"]
+    width, depth = get_facility_dimensions(facility)
+    dx = max(abs(point[0] - x) - width / 2, 0.0)
+    dy = max(abs(point[1] - y) - depth / 2, 0.0)
+    return math.hypot(dx, dy)
+
+
+def calculate_crane_core_coverage(facilities: List[Dict]) -> float:
+    """Reward crane operating-radius overlap with every core footprint."""
+    cranes = [f for f in facilities if f["type"] == "crane"]
+    cores = [f for f in facilities if f["type"] == "core"]
+    if not cranes or not cores:
+        return 0.0
+
+    crane_spec = FACILITY_SPECS["crane"]
+    optimal_reach = crane_spec["optimal_reach"]
+    operating_radius = crane_spec["operating_radius"]
+    core_scores = []
+
+    for core in cores:
+        best_score = 0.0
+        for crane in cranes:
+            crane_pos = np.array(crane["center"])
+            edge_distance = point_to_facility_rect_distance(crane_pos, core)
+            if edge_distance <= optimal_reach:
+                score = 1.0
+            elif edge_distance <= operating_radius:
+                score = 1.0 - 0.5 * (
+                    (edge_distance - optimal_reach) / (operating_radius - optimal_reach)
+                )
+            else:
+                score = 0.0
+            best_score = max(best_score, score)
+        core_scores.append(best_score)
+
+    return float(np.mean(core_scores))
+
+
 def calculate_operational_efficiency(facilities: List[Dict], entrances: List[Tuple[float, float]]) -> float:
     """O2: Operational Efficiency with enhanced crane model"""
     
@@ -152,7 +232,7 @@ def calculate_operational_efficiency(facilities: List[Dict], entrances: List[Tup
             facility_positions[ftype] = []
         facility_positions[ftype].append(np.array(facility["center"]))
     
-    # Critical material flows
+    # Critical material flows (40%)
     flow_efficiency = 0.0
     critical_flows = [("storage", "core"), ("crane", "core"), ("storage", "crane")]
     
@@ -172,16 +252,17 @@ def calculate_operational_efficiency(facilities: List[Dict], entrances: List[Tup
         site_diagonal = math.sqrt(2) * 0.8
         flow_efficiency = max(0.0, 1.0 - avg_flow_distance / site_diagonal)
     
-    # Enhanced equipment accessibility with crane coverage analysis.
+    # Enhanced Equipment accessibility with crane coverage analysis (40%)
     access_efficiency = 0.0
     if "crane" in facility_positions:
         crane_positions = facility_positions["crane"]
         work_areas = facility_positions.get("core", []) + facility_positions.get("storage", [])
         
         if work_areas:
-            # Define crane parameters
-            optimal_reach = 0.25  # Optimal working radius
-            max_reach = 0.40      # Maximum reach
+            # Define crane parameters from configuration.
+            crane_spec = FACILITY_SPECS["crane"]
+            optimal_reach = crane_spec["optimal_reach"]
+            max_reach = crane_spec["operating_radius"]
             overlap_bonus = 0.15  # Bonus for overlapping coverage
             
             total_coverage_score = 0.0
@@ -269,77 +350,6 @@ def calculate_operational_efficiency(facilities: List[Dict], entrances: List[Tup
     )
     return float(np.clip(final_score, 0.0, 1.0))
 
-
-def calculate_worker_facility_clustering(facility_positions: Dict[str, List[np.ndarray]]) -> float:
-    """Reward offices and rest areas forming a compact worker-support cluster."""
-    worker_positions = facility_positions.get("office", []) + facility_positions.get("rest_area", [])
-    if len(worker_positions) < 2:
-        return 0.5
-
-    worker_centroid = np.mean(worker_positions, axis=0)
-    mean_cluster_radius = np.mean([
-        np.linalg.norm(pos - worker_centroid)
-        for pos in worker_positions
-    ])
-    compactness_score = max(0.0, 1.0 - mean_cluster_radius / 0.20)
-
-    cross_type_score = 0.5
-    if facility_positions.get("office") and facility_positions.get("rest_area"):
-        nearest_cross_distances = []
-        for office_pos in facility_positions["office"]:
-            nearest_cross_distances.append(min(
-                np.linalg.norm(office_pos - rest_pos)
-                for rest_pos in facility_positions["rest_area"]
-            ))
-        for rest_pos in facility_positions["rest_area"]:
-            nearest_cross_distances.append(min(
-                np.linalg.norm(rest_pos - office_pos)
-                for office_pos in facility_positions["office"]
-            ))
-        avg_cross_distance = np.mean(nearest_cross_distances)
-        cross_type_score = max(0.0, 1.0 - avg_cross_distance / 0.22)
-
-    return float(np.clip(0.65 * compactness_score + 0.35 * cross_type_score, 0.0, 1.0))
-
-
-def point_to_facility_rect_distance(point: np.ndarray, facility: Dict) -> float:
-    """Distance from a point to the nearest point on a facility rectangle."""
-    x, y = facility["center"]
-    spec = FACILITY_SPECS[facility["type"]]
-    dx = max(abs(point[0] - x) - spec["w"] / 2, 0.0)
-    dy = max(abs(point[1] - y) - spec["d"] / 2, 0.0)
-    return math.hypot(dx, dy)
-
-
-def calculate_crane_core_coverage(facilities: List[Dict]) -> float:
-    """Reward crane operating-radius overlap with every core footprint."""
-    cranes = [f for f in facilities if f["type"] == "crane"]
-    cores = [f for f in facilities if f["type"] == "core"]
-    if not cranes or not cores:
-        return 0.0
-
-    optimal_reach = 0.25
-    operating_radius = 0.40
-    core_scores = []
-
-    for core in cores:
-        best_score = 0.0
-        for crane in cranes:
-            crane_pos = np.array(crane["center"])
-            edge_distance = point_to_facility_rect_distance(crane_pos, core)
-            if edge_distance <= optimal_reach:
-                score = 1.0
-            elif edge_distance <= operating_radius:
-                score = 1.0 - 0.5 * (
-                    (edge_distance - optimal_reach) / (operating_radius - optimal_reach)
-                )
-            else:
-                score = 0.0
-            best_score = max(best_score, score)
-        core_scores.append(best_score)
-
-    return float(np.mean(core_scores))
-
 # =============================================================================
 # OBJECTIVE FUNCTION 3: LAYOUT ADAPTABILITY
 # =============================================================================
@@ -349,19 +359,19 @@ def calculate_layout_adaptability(facilities: List[Dict], entrances: List[Tuple[
     """O3: Layout Adaptability"""
     
     # Expansion potential (40%)
-    grid_size = 10
+    grid_size = 25
     cell_size = 1.0 / grid_size
     margin = config.boundary_margin
     
     occupied_cells = set()
     for facility in facilities:
         x, y = facility["center"]
-        spec = FACILITY_SPECS[facility["type"]]
+        w, d = get_facility_dimensions(facility)
         
-        cells_x = range(max(0, int((x - spec["w"]/2) / cell_size)), 
-                       min(grid_size, int((x + spec["w"]/2) / cell_size) + 1))
-        cells_y = range(max(0, int((y - spec["d"]/2) / cell_size)), 
-                       min(grid_size, int((y + spec["d"]/2) / cell_size) + 1))
+        cells_x = range(max(0, int((x - w/2) / cell_size)),
+                       min(grid_size, int((x + w/2) / cell_size) + 1))
+        cells_y = range(max(0, int((y - d/2) / cell_size)),
+                       min(grid_size, int((y + d/2) / cell_size) + 1))
         
         for cx in cells_x:
             for cy in cells_y:
@@ -400,18 +410,25 @@ def calculate_layout_adaptability(facilities: List[Dict], entrances: List[Tuple[
     
     for i, facility in enumerate(facilities):
         current_pos = np.array(facility["center"])
-        spec = FACILITY_SPECS[facility["type"]]
+        w, d = get_facility_dimensions(facility)
         
         relocation_options = 0
         test_positions = 20
         
         for _ in range(test_positions):
-            new_x = np.random.uniform(margin + spec["w"]/2, 1.0 - margin - spec["w"]/2)
-            new_y = np.random.uniform(margin + spec["d"]/2, 1.0 - margin - spec["d"]/2)
+            new_x = np.random.uniform(margin + w/2, 1.0 - margin - w/2)
+            new_y = np.random.uniform(margin + d/2, 1.0 - margin - d/2)
             new_pos = np.array([new_x, new_y])
             
-            test_facility = {"type": facility["type"], "center": (new_x, new_y)}
+            test_facility = {
+                "type": facility["type"],
+                "center": (new_x, new_y),
+                "rotation": facility.get("rotation", 0),
+            }
             
+            if not facility_within_site_boundary(test_facility, config):
+                continue
+
             has_overlap = False
             for j, other_facility in enumerate(facilities):
                 if i != j and rectangles_overlap(test_facility, other_facility):

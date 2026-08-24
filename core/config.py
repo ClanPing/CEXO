@@ -80,6 +80,29 @@ class NSGA2Config:
     crossover_rate: float = 0.8
     mutation_rate: float = 0.4
 
+@dataclass
+class AutoencoderConfig:
+    """Configuration for autoencoder-based behavioral descriptor learning"""
+    use_learned_descriptors: bool = False  # Whether to use learned vs hand-crafted BDs
+    latent_dim: int = 2  # Latent dimension (typically 2 for MAP-Elites grid)
+    encoder_hidden: List[int] = None  # Hidden layers for encoder [128, 64, 32]
+    decoder_hidden: List[int] = None  # Hidden layers for decoder [32, 64, 128]
+    learning_rate: float = 0.001  # Adam optimizer learning rate
+    batch_size: int = 32  # Training batch size
+    training_epochs: int = 50  # Epochs per training session
+    training_frequency: int = 1000  # Train every N iterations
+    min_samples_for_training: int = 100  # Minimum samples before first training
+    pretrain_iterations: int = 500  # Iterations before switching to learned BDs
+    save_model_path: str = None  # Optional path to save trained model
+    load_model_path: str = None  # Optional path to load pretrained model
+    seed: int = None  # Random seed for reproducibility (uses SiteConfig.seed if None)
+    
+    def __post_init__(self):
+        if self.encoder_hidden is None:
+            self.encoder_hidden = [128, 64, 32]
+        if self.decoder_hidden is None:
+            self.decoder_hidden = [32, 64, 128]
+
 # =============================================================================
 # UTILITY FUNCTIONS
 # =============================================================================

@@ -6,14 +6,14 @@ Behavioral Descriptors Module
 Hand-crafted descriptors for MAP-Elites plus a manager for switching to learned
 autoencoder descriptors.
 
-The descriptors are case-independent definitions used by the original study and
-the Bulleen study:
-- BD1: same-type module clustering vs dispersion
-- BD2: worker-operational separation
+For the practical Bulleen case, facilities are now small repeatable modules.
+The descriptors therefore focus on module clustering and functional zoning,
+instead of treating each facility as one large block.
 """
 
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple
 import numpy as np
+
 
 # =============================================================================
 # BEHAVIORAL DESCRIPTOR 1: MODULE CLUSTERING VS DISPERSION
@@ -24,7 +24,6 @@ def calculate_compactness_vs_spread(facilities: List[Dict]) -> float:
 
     0 = repeated modules of the same type are clustered.
     1 = repeated modules of the same type are dispersed.
-    Falls back to whole-layout spread when no facility type repeats.
     """
     if len(facilities) < 2:
         return 0.5
@@ -55,7 +54,8 @@ def calculate_compactness_vs_spread(facilities: List[Dict]) -> float:
         return float(np.clip(mean_distance / 0.50, 0.0, 1.0))
 
     cluster_distance = np.mean(nearest_same_type_distances)
-    return float(np.clip(cluster_distance / 0.20, 0.0, 1.0))
+    return float(np.clip(cluster_distance / 0.16, 0.0, 1.0))
+
 
 # =============================================================================
 # BEHAVIORAL DESCRIPTOR 2: WORKER-OPERATIONAL SEPARATION
@@ -64,8 +64,8 @@ def calculate_compactness_vs_spread(facilities: List[Dict]) -> float:
 def calculate_worker_operational_separation(facilities: List[Dict]) -> float:
     """BD2: worker-operational separation.
 
-    0 = office/rest facilities are embedded near work operations.
-    1 = office/rest facilities are segregated from operational facilities.
+    0 = office/rest modules are embedded near work operations.
+    1 = office/rest modules are segregated from operational modules.
     """
     worker_types = {"office", "rest_area"}
     operational_types = {"core", "storage", "crane"}
@@ -90,9 +90,9 @@ def calculate_worker_operational_separation(facilities: List[Dict]) -> float:
     centroid_separation = np.linalg.norm(worker_centroid - operational_centroid)
 
     avg_nearest_separation = np.mean(separation_distances)
-    separation_ratio = (0.6 * avg_nearest_separation + 0.4 * centroid_separation) / 0.32
-
+    separation_ratio = (0.6 * avg_nearest_separation + 0.4 * centroid_separation) / 0.28
     return float(np.clip(separation_ratio, 0.0, 1.0))
+
 
 # =============================================================================
 # LEGACY FUNCTION NAMES FOR COMPATIBILITY
@@ -102,13 +102,15 @@ def calculate_spatial_organization(facilities: List[Dict]) -> float:
     """BD1 alias retained for existing algorithm code."""
     return calculate_compactness_vs_spread(facilities)
 
+
 def calculate_functional_integration(facilities: List[Dict]) -> float:
     """BD2 alias retained for existing algorithm code.
 
-    Despite the old name, this returns worker-operational separation directly
-    so archive axes match the descriptor manager and paper definition.
+    Despite the old name, this now returns worker-operational separation directly
+    so the archive axis matches BehavioralDescriptorManager.
     """
     return calculate_worker_operational_separation(facilities)
+
 
 # =============================================================================
 # BEHAVIORAL DESCRIPTOR UTILITIES
@@ -117,35 +119,36 @@ def calculate_functional_integration(facilities: List[Dict]) -> float:
 def get_behavioral_description(bd1: float, bd2: float) -> str:
     """Get human-readable description of behavioral descriptors."""
     spatial = "Clustered" if bd1 < 0.5 else "Dispersed"
-    functional = "Embedded" if bd2 < 0.5 else "Separated"
+    functional = "Embedded" if bd2 < 0.5 else "Segregated"
 
     descriptions = {
-        ("Clustered", "Embedded"): "Same-type facilities clustered, worker facilities embedded near operations",
-        ("Clustered", "Separated"): "Same-type facilities clustered, worker facilities separated from operations",
-        ("Dispersed", "Embedded"): "Same-type facilities dispersed, worker facilities embedded near operations",
-        ("Dispersed", "Separated"): "Same-type facilities dispersed, worker facilities separated from operations",
+        ("Clustered", "Embedded"): "Same-type modules form clusters with worker facilities embedded near operations",
+        ("Clustered", "Segregated"): "Same-type modules form clusters with worker facilities separated from operations",
+        ("Dispersed", "Embedded"): "Same-type modules are distributed while worker facilities remain near operations",
+        ("Dispersed", "Segregated"): "Same-type modules are distributed with worker facilities separated from operations",
     }
 
     return descriptions.get((spatial, functional), f"{spatial} {functional}")
+
 
 def get_behavioral_quadrant(bd1: float, bd2: float) -> str:
     """Get behavioral quadrant name."""
     if bd1 < 0.5 and bd2 < 0.5:
         return "clustered_embedded"
-    elif bd1 < 0.5 and bd2 >= 0.5:
-        return "clustered_separated"
-    elif bd1 >= 0.5 and bd2 < 0.5:
+    if bd1 < 0.5 and bd2 >= 0.5:
+        return "clustered_segregated"
+    if bd1 >= 0.5 and bd2 < 0.5:
         return "dispersed_embedded"
-    else:
-        return "dispersed_separated"
+    return "dispersed_segregated"
+
 
 def analyze_behavioral_regions(individuals: List) -> Dict:
     """Analyze which regions of the 2D behavioral space are well-explored."""
     regions = {
         "clustered_embedded": {"bd1_range": (0.0, 0.5), "bd2_range": (0.0, 0.5)},
-        "clustered_separated": {"bd1_range": (0.0, 0.5), "bd2_range": (0.5, 1.0)},
+        "clustered_segregated": {"bd1_range": (0.0, 0.5), "bd2_range": (0.5, 1.0)},
         "dispersed_embedded": {"bd1_range": (0.5, 1.0), "bd2_range": (0.0, 0.5)},
-        "dispersed_separated": {"bd1_range": (0.5, 1.0), "bd2_range": (0.5, 1.0)},
+        "dispersed_segregated": {"bd1_range": (0.5, 1.0), "bd2_range": (0.5, 1.0)},
     }
 
     region_analysis = {}
@@ -155,8 +158,10 @@ def analyze_behavioral_regions(individuals: List) -> Dict:
         for ind in individuals:
             if hasattr(ind, "behaviors") and ind.behaviors:
                 bd1, bd2 = ind.behaviors
-                if (bounds["bd1_range"][0] <= bd1 < bounds["bd1_range"][1] and
-                    bounds["bd2_range"][0] <= bd2 < bounds["bd2_range"][1]):
+                if (
+                    bounds["bd1_range"][0] <= bd1 < bounds["bd1_range"][1]
+                    and bounds["bd2_range"][0] <= bd2 < bounds["bd2_range"][1]
+                ):
                     region_individuals.append(ind)
 
         if region_individuals:
@@ -187,23 +192,13 @@ def analyze_behavioral_regions(individuals: List) -> Dict:
 
 
 # =============================================================================
-# BEHAVIORAL DESCRIPTOR MANAGER (HAND-CRAFTED VS LEARNED)
+# BEHAVIORAL DESCRIPTOR MANAGER
 # =============================================================================
 
 class BehavioralDescriptorManager:
-    """
-    Manages behavioral descriptor extraction with support for both
-    hand-crafted and autoencoder-learned descriptors.
-    """
+    """Manages hand-crafted and autoencoder-learned descriptors."""
 
-    def __init__(self, mode: str = "hand-crafted", autoencoder_model = None):
-        """
-        Initialize behavioral descriptor manager.
-
-        Args:
-            mode: "hand-crafted" or "learned"
-            autoencoder_model: LearnedBehavioralDescriptors instance (required if mode="learned")
-        """
+    def __init__(self, mode: str = "hand-crafted", autoencoder_model=None):
         if mode not in ["hand-crafted", "learned"]:
             raise ValueError(f"Invalid mode: {mode}. Must be 'hand-crafted' or 'learned'")
 
@@ -213,18 +208,12 @@ class BehavioralDescriptorManager:
         if self.mode == "learned" and self.autoencoder_model is None:
             raise ValueError("autoencoder_model must be provided when mode='learned'")
 
-    def get_descriptors(self, facilities: List[Dict],
-                       entrances: List[Tuple[float, float]] = None) -> Tuple[float, float]:
-        """
-        Extract behavioral descriptors from a layout.
-
-        Args:
-            facilities: List of facility dictionaries
-            entrances: Optional entrance positions
-
-        Returns:
-            Tuple of (bd1, bd2) in range [0, 1]
-        """
+    def get_descriptors(
+        self,
+        facilities: List[Dict],
+        entrances: List[Tuple[float, float]] = None,
+    ) -> Tuple[float, float]:
+        """Extract descriptors as a tuple in [0, 1]."""
         if self.mode == "hand-crafted":
             bd1 = calculate_compactness_vs_spread(facilities)
             bd2 = calculate_worker_operational_separation(facilities)
@@ -232,14 +221,8 @@ class BehavioralDescriptorManager:
 
         return self.autoencoder_model.get_behavioral_descriptors(facilities, entrances)
 
-    def switch_mode(self, new_mode: str, autoencoder_model = None):
-        """
-        Switch between hand-crafted and learned descriptor modes.
-
-        Args:
-            new_mode: "hand-crafted" or "learned"
-            autoencoder_model: Required if switching to learned mode
-        """
+    def switch_mode(self, new_mode: str, autoencoder_model=None):
+        """Switch between hand-crafted and learned descriptor modes."""
         if new_mode not in ["hand-crafted", "learned"]:
             raise ValueError(f"Invalid mode: {new_mode}")
 
@@ -259,17 +242,10 @@ class BehavioralDescriptorManager:
 # CONVENIENCE FUNCTIONS
 # =============================================================================
 
-def create_descriptor_manager(use_learned: bool = False,
-                              autoencoder_model = None) -> BehavioralDescriptorManager:
-    """
-    Factory function to create a behavioral descriptor manager.
-
-    Args:
-        use_learned: Whether to use learned descriptors
-        autoencoder_model: LearnedBehavioralDescriptors instance (required if use_learned=True)
-
-    Returns:
-        Initialized BehavioralDescriptorManager
-    """
+def create_descriptor_manager(
+    use_learned: bool = False,
+    autoencoder_model=None,
+) -> BehavioralDescriptorManager:
+    """Create a behavioral descriptor manager."""
     mode = "learned" if use_learned else "hand-crafted"
     return BehavioralDescriptorManager(mode=mode, autoencoder_model=autoencoder_model)

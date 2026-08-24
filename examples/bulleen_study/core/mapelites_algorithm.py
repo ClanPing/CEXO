@@ -229,9 +229,9 @@ class PureMapElitesOptimizer:
                 target_spatial, target_functional = behavioral_targets[target_idx % len(behavioral_targets)]
                 solution = create_targeted_layout(
                     self.facility_types, self.site_config.boundary_margin,
-                    target_spatial, target_functional)
+                    target_spatial, target_functional, self.site_config)
             else:  # Remaining: random layouts
-                solution = create_random_layout(self.facility_types, self.site_config.boundary_margin)
+                solution = create_random_layout(self.facility_types, self.site_config.boundary_margin, self.site_config)
             
             # Apply constraint repair less frequently to maintain diversity
             if random.random() > 0.5:  # 50% chance to repair in initial population
@@ -282,7 +282,7 @@ class PureMapElitesOptimizer:
                     current_functional = parent.behaviors[1]
                     offspring_solution = mutate_toward_behavioral_diversity(
                         parent.solution, self.site_config.boundary_margin, 
-                        current_spatial, current_functional)
+                        current_spatial, current_functional, self.site_config)
                     offspring_entrances = parent.entrances[:]
                 else:
                     # Create targeted layout in under-explored region
@@ -290,7 +290,7 @@ class PureMapElitesOptimizer:
                     target_functional = random.choice([0.1, 0.3, 0.7, 0.9])
                     offspring_solution = create_targeted_layout(
                         self.facility_types, self.site_config.boundary_margin,
-                        target_spatial, target_functional)
+                        target_spatial, target_functional, self.site_config)
                     offspring_entrances = generate_random_entrances(
                         self.site_config, seed=self.site_config.seed + iteration)
                         
@@ -300,7 +300,7 @@ class PureMapElitesOptimizer:
                 target_functional = random.choice([0.1, 0.9])
                 offspring_solution = create_targeted_layout(
                     self.facility_types, self.site_config.boundary_margin,
-                    target_spatial, target_functional)
+                    target_spatial, target_functional, self.site_config)
                 offspring_entrances = generate_random_entrances(
                     self.site_config, seed=self.site_config.seed + iteration)
                     
@@ -311,7 +311,7 @@ class PureMapElitesOptimizer:
                     mutation_sigma = 0.08 if current_coverage < 25.0 else 0.05
                     offspring_solution = mutate_layout(
                         parent.solution, self.site_config.boundary_margin, 
-                        p_mut=0.4, sigma=mutation_sigma)
+                        p_mut=0.4, sigma=mutation_sigma, config=self.site_config)
                     if random.random() < 0.15:
                         offspring_entrances = generate_random_entrances(
                             self.site_config, seed=self.site_config.seed + iteration)
@@ -321,7 +321,7 @@ class PureMapElitesOptimizer:
                     offspring_entrances = generate_random_entrances(
                         self.site_config, seed=self.site_config.seed + iteration)
                     offspring_solution = create_random_layout(
-                        self.facility_types, self.site_config.boundary_margin)
+                        self.facility_types, self.site_config.boundary_margin, self.site_config)
                 
             else:  # Crossover
                 parent1 = self.archive.get_random_individual()
@@ -335,7 +335,7 @@ class PureMapElitesOptimizer:
                     offspring_entrances = generate_random_entrances(
                         self.site_config, seed=self.site_config.seed + iteration)
                     offspring_solution = create_random_layout(
-                        self.facility_types, self.site_config.boundary_margin)
+                        self.facility_types, self.site_config.boundary_margin, self.site_config)
             
             # Apply constraint repair with moderate frequency
             if random.random() > 0.3:  # 70% chance to repair

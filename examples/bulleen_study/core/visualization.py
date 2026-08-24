@@ -15,7 +15,33 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle, Circle
 from mpl_toolkits.mplot3d import Axes3D
 
-from .config import Individual, SiteConfig, FACILITY_SPECS, FACILITY_COLORS
+from .config import (
+    Individual,
+    SiteConfig,
+    FACILITY_SPECS,
+    FACILITY_COLORS,
+    get_facility_dimensions,
+)
+
+
+def draw_site_boundary(ax, config: SiteConfig, **kwargs):
+    """Draw rectangular or polygonal site boundary."""
+    if config.boundary_polygon:
+        xs = [p[0] for p in config.boundary_polygon] + [config.boundary_polygon[0][0]]
+        ys = [p[1] for p in config.boundary_polygon] + [config.boundary_polygon[0][1]]
+        ax.plot(xs, ys, **kwargs)
+
+        for zone in config.exclusion_zones or []:
+            polygon = zone["polygon"]
+            zx = [p[0] for p in polygon] + [polygon[0][0]]
+            zy = [p[1] for p in polygon] + [polygon[0][1]]
+            ax.fill(zx, zy, facecolor='lightgray', edgecolor='dimgray',
+                    linewidth=1.5, alpha=0.65, hatch='//')
+    else:
+        margin = config.boundary_margin
+        boundary_x = [margin, 1-margin, 1-margin, margin, margin]
+        boundary_y = [margin, margin, 1-margin, 1-margin, margin]
+        ax.plot(boundary_x, boundary_y, **kwargs)
 
 # =============================================================================
 # LAYOUT VISUALIZATION
@@ -29,10 +55,7 @@ def visualize_layout(ax, individual: Individual, config: SiteConfig, title: str 
     behaviors = individual.behaviors
     
     # Draw boundary
-    margin = config.boundary_margin
-    boundary_x = [margin, 1-margin, 1-margin, margin, margin]
-    boundary_y = [margin, margin, 1-margin, 1-margin, margin]
-    ax.plot(boundary_x, boundary_y, 'k-', linewidth=2)
+    draw_site_boundary(ax, config, color='black', linestyle='-', linewidth=2)
     
     # Draw entrance clearance zones
     for entrance in entrances:
@@ -60,7 +83,7 @@ def visualize_layout(ax, individual: Individual, config: SiteConfig, title: str 
         ftype = facility["type"]
         x, y = facility["center"]
         spec = FACILITY_SPECS[ftype]
-        w, h = spec["w"], spec["d"]
+        w, h = get_facility_dimensions(facility)
         
         category = spec["category"]
         if category == "worker":
@@ -81,6 +104,10 @@ def visualize_layout(ax, individual: Individual, config: SiteConfig, title: str 
         
         # Crane danger zones
         if ftype == "crane":
+            operating_circle = Circle((x, y), spec["operating_radius"],
+                                    fill=False, linestyle='--', edgecolor='darkorange',
+                                    alpha=0.7, linewidth=2)
+            ax.add_patch(operating_circle)
             danger_circle = Circle((x, y), spec["danger_radius"], 
                                  fill=False, linestyle='-', edgecolor='red', alpha=0.8, linewidth=2)
             ax.add_patch(danger_circle)
@@ -93,7 +120,7 @@ def visualize_layout(ax, individual: Individual, config: SiteConfig, title: str 
     # Enhanced title
     safety, efficiency, adaptability = objectives
     
-    status = "✓ SAFE" if individual.feasible else "✗ UNSAFE"
+    status = "SAFE" if individual.feasible else "UNSAFE"
     obj_text = f"S: {safety:.3f}, E: {efficiency:.3f}, A: {adaptability:.3f}"
     
     if behaviors is not None:
@@ -151,7 +178,7 @@ def create_mapelites_visualizations(archive, config: SiteConfig, output_dir: str
     
     scatter2 = ax2.scatter(behaviors[:, 0], behaviors[:, 1], 
                           c=safety_scores, cmap='RdYlGn', alpha=0.7, s=30)
-    ax2.set_xlabel('BD1: Compactness vs Spread\n(Compact → Spread)')
+    ax2.set_xlabel('BD1: Same-Type Module Dispersion\n(Clustered -> Dispersed)')
     ax2.set_ylabel('BD2: Worker-Operational Separation\n(Embedded → Segregated)')
     ax2.set_title('2D Behavioral Space\n(Color = Safety Score)')
     plt.colorbar(scatter2, ax=ax2, label='Safety Score')
@@ -161,7 +188,7 @@ def create_mapelites_visualizations(archive, config: SiteConfig, output_dir: str
     efficiency_scores = [ind.objectives[1] for ind in all_individuals]
     scatter3 = ax3.scatter(behaviors[:, 0], behaviors[:, 1], 
                           c=efficiency_scores, cmap='plasma', alpha=0.7, s=30)
-    ax3.set_xlabel('BD1: Compactness vs Spread')
+    ax3.set_xlabel('BD1: Same-Type Module Dispersion')
     ax3.set_ylabel('BD2: Worker-Operational Separation')
     ax3.set_title('2D Behavioral Space\n(Color = Efficiency Score)')
     plt.colorbar(scatter3, ax=ax3, label='Efficiency Score')
@@ -189,7 +216,7 @@ def create_mapelites_visualizations(archive, config: SiteConfig, output_dir: str
         f"",
         f"Population Quality:",
         f"  Total: {stats['total_individuals']:,}",
-        f"  Safe (>=0.7): {stats['safety_feasible_count']:,}",
+        f"  Safe (≥0.7): {stats['safety_feasible_count']:,}",
         f"",
         f"Objective Averages:",
         f"  Safety: {stats['avg_safety']:.3f}",
@@ -228,7 +255,7 @@ def create_archive_grid_plot(ax, archive):
     
     im = ax.imshow(pareto_size_grid, cmap='Blues', origin='lower', vmin=0, vmax=max_pareto_size)
     ax.set_title('Archive Grid\n(Color = Solutions per cell)')
-    ax.set_xlabel('BD2: Functional Integration')
+    ax.set_xlabel('BD2: Worker-Operational Separation')
     ax.set_ylabel('BD1: Spatial Organization')
     
     # Add numbers to non-empty cells
@@ -475,7 +502,7 @@ def create_pure_mapelites_visualizations(archive, config: SiteConfig, output_dir
     
     scatter2 = ax2.scatter(behaviors[:, 0], behaviors[:, 1], 
                           c=scalar_fitnesses, cmap='viridis', alpha=0.7, s=40)
-    ax2.set_xlabel('BD1: Compactness vs Spread\n(Compact → Spread)')
+    ax2.set_xlabel('BD1: Same-Type Module Dispersion\n(Clustered -> Dispersed)')
     ax2.set_ylabel('BD2: Worker-Operational Separation\n(Embedded → Segregated)')
     ax2.set_title('2D Behavioral Space\n(Color = Scalar Fitness)')
     plt.colorbar(scatter2, ax=ax2, label='Scalar Fitness')
@@ -485,7 +512,7 @@ def create_pure_mapelites_visualizations(archive, config: SiteConfig, output_dir
     safety_scores = [ind.objectives[0] for ind in all_individuals]
     scatter3 = ax3.scatter(behaviors[:, 0], behaviors[:, 1], 
                           c=safety_scores, cmap='RdYlGn', alpha=0.7, s=40)
-    ax3.set_xlabel('BD1: Compactness vs Spread')
+    ax3.set_xlabel('BD1: Same-Type Module Dispersion')
     ax3.set_ylabel('BD2: Worker-Operational Separation')
     ax3.set_title('2D Behavioral Space\n(Color = Safety Score)')
     plt.colorbar(scatter3, ax=ax3, label='Safety Score')
@@ -565,7 +592,7 @@ def create_pure_mapelites_grid_plot(ax, archive):
     
     im = ax.imshow(fitness_grid_masked, cmap='viridis', origin='lower', vmin=0, vmax=max_fitness)
     ax.set_title('Archive Grid\n(Color = Scalar Fitness)')
-    ax.set_xlabel('BD2: Functional Integration')
+    ax.set_xlabel('BD2: Worker-Operational Separation')
     ax.set_ylabel('BD1: Spatial Organization')
     
     # Add fitness values to occupied cells
@@ -580,24 +607,71 @@ def create_pure_mapelites_grid_plot(ax, archive):
 # RESULTS EXPORT FUNCTIONS
 # =============================================================================
 
-def export_cslpelite_results(archive, config: SiteConfig, output_dir: str, max_layouts: int = 30) -> int:
+def export_cslpelite_results(
+    archive,
+    config: SiteConfig,
+    output_dir: str,
+    max_layouts: Optional[int] = 30,
+    include_unsafe: bool = False,
+    site_width_m: float = 100.0,
+    site_length_m: float = 100.0,
+    coordinate_space: str = "normalized",
+) -> int:
     """Export CSLP Elite (MAP-Elites + NSGA-II) results to JSON"""
     print(f"Exporting CSLP Elite (MAP-Elites + NSGA-II) results to {output_dir}/...")
     os.makedirs(output_dir, exist_ok=True)
     
     all_individuals = archive.get_all_individuals()
     safety_feasible = [ind for ind in all_individuals if ind.objectives[0] >= 0.7]
+    candidates = all_individuals if include_unsafe else safety_feasible
     
     # Sort by weighted combination
-    safety_feasible.sort(
+    candidates.sort(
         key=lambda x: (0.4 * x.objectives[0] + 0.3 * x.objectives[1] + 0.3 * x.objectives[2]), 
         reverse=True
     )
+
+    export_limit = len(candidates) if not max_layouts or max_layouts <= 0 else max_layouts
     
     exported = 0
-    for i, individual in enumerate(safety_feasible[:max_layouts]):
+    boundary_polygon = None
+    if config.boundary_polygon:
+        boundary_polygon = [[float(x), float(y)] for x, y in config.boundary_polygon]
+
+    exclusion_zones = None
+    if config.exclusion_zones:
+        exclusion_zones = []
+        for zone in config.exclusion_zones:
+            polygon = zone.get("polygon") or []
+            exclusion_zones.append({
+                "name": zone.get("name", "zone"),
+                "polygon": [[float(x), float(y)] for x, y in polygon]
+            })
+
+    for i, individual in enumerate(candidates[:export_limit]):
+        facilities_payload = []
+        for facility in individual.solution:
+            width, length = get_facility_dimensions(facility)
+            spec = FACILITY_SPECS[facility["type"]]
+            facilities_payload.append({
+                "type": facility["type"],
+                "x": float(facility["center"][0]),
+                "y": float(facility["center"][1]),
+                "width": float(width),
+                "length": float(length),
+                "rotation": int(facility.get("rotation", 0)),
+                "category": spec["category"],
+                "height_m": float(spec.get("height_m", 3.0)),
+                **({"jib_length_m": float(spec.get("jib_length_m", 6.0))} if facility["type"].startswith("crane") else {})
+            })
+
         layout_data = {
             "id": f"cslpelite_layout_{i:03d}",
+            "coordinate_space": coordinate_space,
+            "site_width_m": float(site_width_m),
+            "site_length_m": float(site_length_m),
+            "boundary_polygon": boundary_polygon,
+            "exclusion_zones": exclusion_zones,
             "objectives": {
                 "safety_compliance": float(individual.objectives[0]),
                 "operational_efficiency": float(individual.objectives[1]),
@@ -605,22 +679,14 @@ def export_cslpelite_results(archive, config: SiteConfig, output_dir: str, max_l
                 "combined_score": float(0.4 * individual.objectives[0] + 0.3 * individual.objectives[1] + 0.3 * individual.objectives[2])
             },
             "behaviors": {
-                "spatial_organization": float(individual.behaviors[0]),
-                "functional_integration": float(individual.behaviors[1])
+                "module_dispersion": float(individual.behaviors[0]),
+                "worker_operational_separation": float(individual.behaviors[1])
             },
             "feasibility": {
                 "safe": individual.feasible,
                 "violations": individual.violations
             },
-            "facilities": [
-                {
-                    "type": f["type"],
-                    "x": float(f["center"][0]),
-                    "y": float(f["center"][1]),
-                    "category": FACILITY_SPECS[f["type"]]["category"]
-                }
-                for f in individual.solution
-            ],
+            "facilities": facilities_payload,
             "entrances": [
                 {"x": float(e[0]), "y": float(e[1])} 
                 for e in individual.entrances
@@ -642,10 +708,11 @@ def export_cslpelite_results(archive, config: SiteConfig, output_dir: str, max_l
             "layout_adaptability": "Expansion + redundancy + reconfiguration potential"
         },
         "behavioral_space": {
-            "spatial_organization": "Centralized vs distributed layout patterns",
-            "functional_integration": "Segregated vs mixed functional zones"
+            "module_dispersion": "Clustered vs dispersed same-type modules",
+            "worker_operational_separation": "Worker modules embedded with or separated from operations"
         },
         "total_exported": exported,
+        "export_includes_unsafe": include_unsafe,
         "archive_performance": {
             "grid_size": f"{archive.grid_size[0]}×{archive.grid_size[1]}",
             "coverage": stats['coverage'],
@@ -697,6 +764,7 @@ def export_nsga2_results(results: Dict, config: SiteConfig, output_dir: str, max
                     "type": f["type"],
                     "x": float(f["center"][0]),
                     "y": float(f["center"][1]),
+                    "rotation": int(f.get("rotation", 0)),
                     "category": FACILITY_SPECS[f["type"]]["category"]
                 }
                 for f in individual.solution
@@ -786,8 +854,8 @@ def export_mapelites_results(archive, config: SiteConfig, output_dir: str, max_l
                 "scalar_fitness": float(scalar_fitness)
             },
             "behaviors": {
-                "spatial_organization": float(individual.behaviors[0]),
-                "functional_integration": float(individual.behaviors[1])
+                "module_dispersion": float(individual.behaviors[0]),
+                "worker_operational_separation": float(individual.behaviors[1])
             },
             "feasibility": {
                 "safe": individual.feasible,
@@ -798,6 +866,7 @@ def export_mapelites_results(archive, config: SiteConfig, output_dir: str, max_l
                     "type": f["type"],
                     "x": float(f["center"][0]),
                     "y": float(f["center"][1]),
+                    "rotation": int(f.get("rotation", 0)),
                     "category": FACILITY_SPECS[f["type"]]["category"]
                 }
                 for f in individual.solution
@@ -827,8 +896,8 @@ def export_mapelites_results(archive, config: SiteConfig, output_dir: str, max_l
             "layout_adaptability": "Expansion + redundancy + reconfiguration potential"
         },
         "behavioral_space": {
-            "spatial_organization": "Centralized vs distributed layout patterns", 
-            "functional_integration": "Segregated vs mixed functional zones"
+            "module_dispersion": "Clustered vs dispersed same-type modules", 
+            "worker_operational_separation": "Worker modules embedded with or separated from operations"
         },
         "fitness_function": "Weighted scalar combination of three objectives",
         "total_exported": exported,
@@ -929,8 +998,9 @@ def visualize_mapelites_archive_heatmap(archive, title: str = "MAP-Elites Archiv
     return fig
 
 
-def visualize_layout(facilities: List[Dict], entrances: List, 
-                     title: str = "Construction Site Layout"):
+def visualize_layout(facilities: List[Dict], entrances: List,
+                     title: str = "Construction Site Layout",
+                     config: SiteConfig = None):
     """
     Standalone layout visualization (simplified version for autoencoder script).
     
@@ -943,12 +1013,10 @@ def visualize_layout(facilities: List[Dict], entrances: List,
         Matplotlib figure
     """
     fig, ax = plt.subplots(figsize=(10, 10))
+    site_config = config or SiteConfig()
     
     # Draw boundary
-    margin = 0.08
-    boundary_x = [margin, 1-margin, 1-margin, margin, margin]
-    boundary_y = [margin, margin, 1-margin, 1-margin, margin]
-    ax.plot(boundary_x, boundary_y, 'k-', linewidth=2)
+    draw_site_boundary(ax, site_config, color='black', linestyle='-', linewidth=2)
     
     # Draw entrances
     for i, entrance in enumerate(entrances):
@@ -962,7 +1030,7 @@ def visualize_layout(facilities: List[Dict], entrances: List,
         ftype = facility["type"]
         x, y = facility["center"]
         spec = FACILITY_SPECS[ftype]
-        w, h = spec["w"], spec["d"]
+        w, h = get_facility_dimensions(facility)
         
         rect = Rectangle((x - w/2, y - h/2), w, h, 
                         facecolor=FACILITY_COLORS[ftype], 
@@ -978,6 +1046,10 @@ def visualize_layout(facilities: List[Dict], entrances: List,
         
         # Crane danger zones
         if ftype == "crane":
+            operating_circle = Circle((x, y), spec["operating_radius"],
+                                    fill=False, linestyle='--', edgecolor='darkorange',
+                                    alpha=0.6, linewidth=2)
+            ax.add_patch(operating_circle)
             danger_circle = Circle((x, y), spec["danger_radius"], 
                                  fill=False, linestyle='--', edgecolor='red', 
                                  alpha=0.6, linewidth=2)
