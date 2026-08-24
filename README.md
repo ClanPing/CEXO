@@ -8,54 +8,31 @@
 ![License](https://img.shields.io/badge/License-MIT-green)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.18426345.svg)](https://doi.org/10.5281/zenodo.18426345)
 
-**Construction Site eXploration and Optimisation (CEXO)** is a hybrid quality-diversity framework for construction site layout planning. It integrates MAP-Elites, NSGA-II-style Pareto selection, genetic variation operators, and optional autoencoder-learned behavioral descriptors to generate diverse, high-performing, and safety-aware construction site layouts.
+**Construction Site eXploration and Optimisation (CEXO)**
 
-The repository keeps the standard CEXO workflow, baseline algorithms, export tools, visual analysis assets, and the new Bulleen practical case-study pathway in one main codebase.
+This project presents CEXO, a hybrid optimization framework that integrates MAP-Elites and NSGA-II to generate diverse and high-performing construction site layouts.
 
-## Key Features
-
-- **Three optimization pathways** with direct comparison modes
-- **Multi-objective optimization** for safety, operational efficiency, and layout adaptability
-- **Quality-diversity exploration** through a 2D behavioral archive
-- **Per-cell Pareto fronts** for preserving multiple trade-off layouts in each behavioral niche
-- **Genetic algorithm operators** for mutation, crossover, targeted generation, and repair
-- **Optional learned behavioral descriptors** using an autoencoder latent space
-- **Bulleen practical case-study support** with fixed facility mix, irregular site boundary, entrances, and road/access exclusion corridors
-- **Comprehensive visualization and JSON export tools** for downstream analysis and app integration
+## 🎯Key Features
+- **Three optimization algorithms** with comparative modes
+- **Multi-objective optimization** (3 objectives: Safety, Efficiency, Adaptability)
+- **Behavioral diversity exploration** (Autoencoder training included for learned behavioural descriptors)
+- **Comprehensive visualization** and analysis tools
+- **Modular architecture** for easy extension and experimentation
 
 ## Project Structure
 
-```text
+```
 CEXO/
 |
-+-- core/                            # Python package with reusable modules
-|   +-- __init__.py                  # Package exports
-|   +-- config.py                    # Configurations, facility data, Bulleen helpers
-|   +-- objectives.py                # Safety, efficiency, and adaptability objectives
-|   +-- behavioral_descriptors.py    # Hand-crafted and learned descriptor manager
-|   +-- layout_generation.py         # Layout generation, repair, and genetic operators
-|   +-- layout_autoencoder.py        # Autoencoder model and trainer
-|   +-- visualization.py             # Visualization and export functions
-|   +-- cexo_algorithm.py            # CEXO optimizer
-|   +-- cslpelites_algorithm.py      # Compatibility import shim
-|   +-- mapelites_algorithm.py       # Pure MAP-Elites baseline
-|   +-- mapelites_with_autoencoder.py # Compatibility helper for learned MAP-Elites imports
-|   +-- nsga2_algorithm.py           # Pure NSGA-II baseline
-|
-+-- assets/                          # Figures and media used in the repository
-+-- output/                          # Generated outputs, ignored by Git
-|
-+-- run_cexo.py                      # Official CEXO runner
-+-- run_cslpelites.py                # Compatibility runner
-+-- run_mapelites.py                 # Pure MAP-Elites runner
-+-- run_nsga2.py                     # Pure NSGA-II runner
-|
-+-- environment.yml                  # Conda environment specification
-+-- INFO.md                          # Detailed problem formulation
-+-- README.md                        # This file
+├── analysis/                        # Analysis scripts for reproducibility, sensitivity, scalability, and ablation study
+├── assets/                          # Medias used in the repository
+├── core/                            # Python package with main modules to run the model
+├── examples/                        # Practical Bulleen case study using the same CEXO method with different site setup parameters
+├── INFO.md                          # Project information
+├── README.md                        # This file
+├── main.py                          # Main entry point for running the CEXO workflow
+├── requirements.txt                 # Dependencies for Conda environment
 ```
-
-`run_cexo.py` is the official entry point. Compatibility wrappers remain so older local scripts and downstream tools can continue to run while the public project naming is CEXO.
 
 ## Project Information
 
@@ -80,14 +57,9 @@ cd CEXO
 Create the Conda environment:
 
 ```powershell
-conda env create -f environment.yml
+conda create --name cexo python=3.9
 conda activate cexo
-```
-
-On Windows terminals that use a legacy code page, run scripts with Python UTF-8 mode:
-
-```powershell
-python -X utf8 run_cexo.py --test
+pip install -r requirements.txt
 ```
 
 ## Quick Start
