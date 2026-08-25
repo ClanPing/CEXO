@@ -19,22 +19,23 @@ This project presents CEXO, a hybrid optimization framework that integrates MAP-
 - **Comprehensive visualization** and analysis tools
 - **Modular architecture** for easy extension and experimentation
 
-## Project Structure
+## 📁Project Structure
 
 ```
 CEXO/
-|
 ├── analysis/                        # Analysis scripts for reproducibility, sensitivity, scalability, and ablation study
 ├── assets/                          # Medias used in the repository
 ├── core/                            # Python package with main modules to run the model
 ├── examples/                        # Practical Bulleen case study using the same CEXO method with different site setup parameters
+├── .gitignore
 ├── INFO.md                          # Project information
+├── LICENSE
 ├── README.md                        # This file
 ├── main.py                          # Main entry point for running the CEXO workflow
 ├── requirements.txt                 # Dependencies for Conda environment
 ```
 
-## Project Information
+## 📋Project Information
 
 For the detailed problem formulation, please refer to [INFO.md](INFO.md), which explains how layouts are generated, evaluated, constrained, and categorized.
 
@@ -45,7 +46,7 @@ That document covers:
 - Objective functions: safety, efficiency, and adaptability
 - Behavioral descriptors: diversity dimensions for archive organization
 
-## Installation
+## 📥Installation
 
 Clone the repository:
 
@@ -62,164 +63,117 @@ conda activate cexo
 pip install -r requirements.txt
 ```
 
-## Quick Start
-
-### CEXO: `run_cexo.py`
-
-CEXO combines behavioral diversity exploration with multi-objective optimization. In the default v2 workflow, the optimizer first builds an unbiased training pool, trains an autoencoder, then organizes layouts in the MAP-Elites archive using learned behavioral descriptors.
-
+## 🚀Quick Start
+🔹CEXO: Multi-objective optimisation + Quality-diversity algorithm.
 ```powershell
-# Small validation run
-python -X utf8 run_cexo.py --test --output output/cexo_test
+python main.py --facilities 5 --iterations 1000 --initial-pop 100 --seed 42 --visualize
+```
 
-# Standard learned-descriptor run
-python -X utf8 run_cexo.py --facilities 6 --iterations 15000 --initial-pop 500 --output output/cexo
+CEXO can be compared against two baseline methods:
 
-# Hand-crafted descriptor mode
-python -X utf8 run_cexo.py --facilities 6 --iterations 15000 --initial-pop 500 --no-learned --output output/cexo_handcrafted
+🔹NSGA-II: Multi-objective optimisation only.
+```powershell
+python run_nsga2.py --facilities 5 --population 200 --generations 300 --seed 42 --visualize
+```
+
+🔹MAP-Elites: Quality-diversity algorithm only.
+```powershell
+python run_mapelites.py --facilities 5 --iterations 15000 --initial-pop 500 --seed 42 --visualize
 ```
 
 <details>
-<summary><span style="font-weight: bold;">Detailed CEXO arguments and outputs</span></summary>
+<summary><span style="font-weight: bold;">Detailed command arguments and outputs:</span></summary>
 
-**Core parameters**
+1️⃣**Core parameters**
 
-- `--facilities N`: Number of facilities for the standard synthetic case
-- `--iterations N`: Evolution iterations
-- `--initial-pop N` or `--init-pop N`: Initial training/evaluation pool size
-- `--seed N`: Random seed for reproducibility
-- `--test`: Run a small smoke test
+| Argument | Default | Purpose | Example |
+|---|---:|---|---|
+| `--facilities` | `5` | Sets the total number of facilities when using the automatic facility mix. | `--facilities 6` |
+| `--facility-mix` | Auto-generated | Manually sets the exact facility types and counts. Overrides `--facilities`. | `--facility-mix core=2,crane=1,storage=2,office=1,rest_area=1` |
+| `--iterations` | `10000` | Sets the number of CEXO optimisation iterations. | `--iterations 15000` |
+| `--initial-pop` | `500` | Sets the initial population size before optimisation begins. | `--initial-pop 800` |
+| `--seed` | `42` | Sets the random seed for reproducible layout generation and optimisation. | `--seed 123` |
+| `--no-learned` | `False` | Uses hand-crafted behavioural descriptors instead of autoencoder-learned descriptors. | `--no-learned` |
+| `--pretrain` | `2000` | Sets how many iterations occur before autoencoder descriptor training begins. | `--pretrain 3000` |
+| `--train-freq` | `1000` | Sets how often the autoencoder descriptors are retrained. | `--train-freq 500` |
+| `--latent-dim` | `2` | Sets the latent descriptor dimension used by the autoencoder. | `--latent-dim 2` |
+| `--output` | `results` | Sets the folder where run outputs are saved. | `--output output/cexo_test` |
 
-**Descriptor learning**
+2️⃣**Facility mix**
 
-- `--no-learned`: Disable autoencoder descriptors and use hand-crafted behavioral descriptors
-- `--pretrain N`: Number of pretraining layouts/iterations before learned descriptor archive construction
-- `--train-freq N`: Retraining frequency
-- `--latent-dim N`: Latent dimension, normally 2 for MAP-Elites archiving
+CEXO supports two ways to define the facility mix.
+| Mode | Command | Behaviour |
+|---|---|---|
+| Automatic mix | `--facilities 5` | CEXO automatically creates a practical facility mix based on the total facility count and `--seed`. |
+| Manual mix | `--facility-mix core=2,crane=1,storage=2,office=1,rest_area=1` | The exact facility types and counts are fixed by the user. This overrides `--facilities`. |
 
-**Output**
+Valid facility types are: `core`, `crane`, `storage`, `office`, `rest_area`
 
-- `--output DIR` or `--output-dir DIR`: Output directory
-- Main CEXO files include `results.json`, `cexo_summary.json`, `cexo_layout_*.json`, `archive_heatmap.png`, `best_layout.png`, `diverse_layouts.png`, and optional `training_history.png`
-- Compatibility copies are also written for older local analysis and visualization tools
+Automatic facility selection follows this rule:
+| Facility count | Selection rule |
+|---|---|
+| 3 | Includes `core`, `crane`, and `storage`. |
+| 4 | Includes `core`, `crane`, `storage`, plus one extra operational facility. |
+| 5 | Includes `core`, `crane`, `storage`, `office`, and `rest_area`. |
+| >5 | Adds extra operational facilities selected from `core`, `storage`, and `crane`. |
+```
+Examples
+# Automatic facility mix
+python main.py --facilities 5 --seed 42
 
-</details>
-
-## Bulleen Case Study
-
-CEXO v2 includes a Bulleen practical case study for testing the optimizer with an approximate irregular site boundary, fixed access points, road/access exclusions, and practical facility mixes. For the detailed setup and runnable commands, see [case_studies/bulleen](case_studies/bulleen/README.md).
-
-## Baseline Comparisons
-
-CEXO is designed to be compared against pure MAP-Elites and pure NSGA-II under similar experimental settings.
-
-### Pure MAP-Elites: `run_mapelites.py`
-
-Pure MAP-Elites explores behavioral diversity with a scalar fitness function.
-
-```powershell
-# Default run
-python -X utf8 run_mapelites.py --visualize
-
-# Quick test
-python -X utf8 run_mapelites.py --test --visualize
-
-# Custom fitness weights
-python -X utf8 run_mapelites.py --safety-weight 0.6 --efficiency-weight 0.25 --adaptability-weight 0.15 --visualize
+# Manual facility mix
+python main.py --facility-mix core=2,crane=1,storage=2,office=1,rest_area=1 --seed 42
 ```
 
-<details>
-<summary><span style="font-weight: bold;">Detailed MAP-Elites arguments and outputs</span></summary>
+3️⃣**Output**
 
-**Core parameters**
+Additional command-line argument for output results.
+| Argument | Purpose |
+|---|---|
+| `--visualize` | Exports individual final archive layouts as JSON files and PNG previews. |
+| `--export-count 50` | Exports up to 50 layouts. |
+| `--export-all` | Exports every final archived layout. |
+| `--no-export-pngs` | Exports JSON files only. |
+| `--export-unsafe` | Includes layouts with recorded feasibility violations. |
 
-- `--facilities N`: Number of facilities, default 6
-- `--iterations N`: Evolution iterations
-- `--init-pop N`: Initial population size
-- `--grid-size N`: Grid size per behavioral dimension
-
-**Scalar fitness weighting**
-
-- `--safety-weight F`: Weight for safety
-- `--efficiency-weight F`: Weight for efficiency
-- `--adaptability-weight F`: Weight for adaptability
-
-**Output files**
-
-- `mapelites_layout_*.json`
-- `mapelites_summary.json`
-- `mapelites_evaluation.json`
-- `behavioral_analysis.json`
-- `mapelites_analysis.png`
-- `mapelites_layouts.png`
+Results can be found under `results` folder upon finishing the run.
+| Output | Selection rule |
+|---|---|
+| `results.json` | Main run summary, including parameters, facility mix, archive stats, objective scores, runtime. |
+| `archive_heatmap.png` | Behavioural archive heatmap showing occupied cells and quality distribution. |
+| `best_layout.png` | Best layout selected from the final archive. |
+| `diverse_layouts.png` | Representative layouts sampled from different behavioural regions. |
+| `training_history.png` | Autoencoder training progress, generated when learned behavioural descriptors are used. |
 
 </details>
-
-### Pure NSGA-II: `run_nsga2.py`
-
-Pure NSGA-II performs multi-objective Pareto optimization without behavioral descriptors.
 
 ```powershell
-# Default run
-python -X utf8 run_nsga2.py --visualize
-
-# Quick test
-python -X utf8 run_nsga2.py --test --visualize
-
-# Larger convergence run
-python -X utf8 run_nsga2.py --population 400 --generations 600 --visualize
+# Show all available command-line options:
+python main.py --help
+python run_mapelites.py --help
+python run_nsga2.py --help
 ```
 
-<details>
-<summary><span style="font-weight: bold;">Detailed NSGA-II arguments and outputs</span></summary>
+## 📈Analysis
+We have three major analysis: `reproducibility`, `scalability`, and `sensitivity`. Additionally, an ablation study is conducted for CEXO against the two baseline methods (NSGA-II, MAP-Elites).
 
-**Core parameters**
+```powershell
+# All analysis workflows can be launched from the repository root using:
+python analysis.py --help
+```
 
-- `--facilities N`: Number of facilities, default 6
-- `--population N`: Population size
-- `--generations N`: Number of generations
+### Comparative Performance
 
-**NSGA-II parameters**
+This section summarises the comparative evaluation between **CSLP-Elites**, **MAP-Elites**, and **NSGA-II** under identical experimental settings:
 
-- `--tournament-size N`: Tournament selection size
-- `--crossover-rate F`: Crossover probability
-- `--mutation-rate F`: Mutation probability
-
-**Output files**
-
-- `nsga2_layout_*.json`
-- `nsga2_summary.json`
-- `nsga2_detailed_metrics.json`
-- `nsga2_analysis.png`
-- `nsga2_pareto_layouts.png`
-
-</details>
-
-## Methodology
-
-CEXO follows seven main steps:
-
-1. Define the construction site, facility set, entrances, boundaries, and exclusion zones.
-2. Generate candidate layouts using seeded random generation and targeted generation.
-3. Evaluate each layout with safety, operational efficiency, and adaptability objectives.
-4. Learn a two-dimensional behavioral space with an autoencoder, or use hand-crafted behavioral descriptors.
-5. Place layouts into a MAP-Elites archive based on behavioral descriptors.
-6. Maintain a bounded Pareto front inside each occupied cell using NSGA-II-style dominance and crowding-distance logic.
-7. Continue genetic evolution with mutation, crossover, diversity targeting, and repair operators.
-
-This means CEXO preserves both:
-
-- **Quality**: high-performing layouts across multiple objectives
-- **Diversity**: a broad set of behaviorally distinct site layouts
-
-## Comparative Performance
-
-This section summarizes the comparison between **CEXO**, **MAP-Elites**, and **NSGA-II** under the standard benchmark setting:
-
-- Problem setup: 6 facilities, 20x20 behavioral grid
+- Problem setup: 6 facilities
+- Behavioural archive: 20x20 behavioral grid (400 cells)
 - Objectives: safety, efficiency, adaptability
 - Iterations: 15,000
 - Safety threshold: >= 0.7
+- Seed: 42
+- CEXO / MAP-Elites: 500 initial layouts + 15,000 optimisation iterations
+- NSGA-II: population 100 x 150 generations, with a comparable number of evaluated layouts
 
 ### Algorithm Overview
 
@@ -227,16 +181,16 @@ This section summarizes the comparison between **CEXO**, **MAP-Elites**, and **N
 |--------|----------|----------------|-------------|
 | Optimization approach | Multi-objective + behavioral diversity | Scalar fitness + behavioral diversity | Multi-objective only |
 | Output structure | Behavioral grid of Pareto fronts | Behavioral grid with one elite per cell | Single global Pareto front |
-| Trade-off representation | Multiple Pareto solutions per cell | Weighted-sum only | Pareto front only |
-| Behavioral exploration | Strong and structured | High but less constrained | Limited |
+| Trade-off representation | Multiple Pareto solutions per cell | Weighted scalar fitness | Pareto front in objective space |
+| Behavioral exploration | Strong and structured | High but not Pareto-structured | Limited |
 | Constraint handling | Safety-aware archive selection | Scalar penalty based | Objective-space selection |
 | Best use case | Balanced exploration with deployable alternatives | Wide spatial pattern discovery | Objective trade-off search |
 
 ### Quantitative Comparison
 
-| Algorithm | Feasible Solutions (%) | Behavioral Coverage (%) | Distinct Layouts | Avg Safety | Avg Efficiency | Avg Adaptability |
-|:----------|:----------------------:|:-----------------------:|:----------------:|:----------:|:--------------:|:----------------:|
-| **CEXO** | **100 (535/535)** | 55.3 | 221 | **0.989** | 0.695 | 0.515 |
+| Algorithm | Feasible Solutions (%) | Safety Threshold Solutions (%) | Behavioral Coverage (%) | Distinct Layouts | Avg Safety | Avg Efficiency | Avg Adaptability |
+|:----------|:----------------------:|:-----------------------:|:-----------------------:|:----------------:|:----------:|:--------------:|:----------------:|
+| **CEXO** | **31.5 (535/535)** | 55.3 | 221 | **0.989** | 0.695 | 0.515 |
 | **MAP-Elites** | 92 (247/268) | **67.0** | 268 | 0.897 | 0.733 | 0.545 |
 | **NSGA-II** | 4 (8/195) | ~7.6 | 195 | 0.859 | **0.863** | **0.588** |
 
@@ -281,36 +235,9 @@ Representative layouts highlight the practical difference between approaches:
 <img src="assets/views.png" alt="2D-to-3D layout view" width="800"/>
 </p>
 
+## Bulleen Case Study
+
+CEXO v2 includes a Bulleen practical case study for testing the optimizer with an approximate irregular site boundary, fixed access points, road/access exclusions, and practical facility mixes. For the detailed setup and runnable commands, see [case_studies/bulleen](case_studies/bulleen/README.md).
 The 2D-to-3D Streamlit visualization workflow is maintained separately and can be updated after the main CEXO repository is stable:
 
 [Streamlit dashboard repository](https://github.com/ClanPing/CSLP-Elites-App.git)
-
-## Output Files
-
-CEXO writes generated files under `output/`, which is ignored by Git.
-
-Typical CEXO outputs include:
-
-- `results.json`: run configuration, timing, and summary statistics
-- `cexo_summary.json`: archive and objective summary
-- `cexo_layout_*.json`: exported layout candidates
-- `archive_heatmap.png`: behavioral archive heatmap
-- `best_layout.png`: best exported layout
-- `diverse_layouts.png`: representative layouts across the archive
-- `training_history.png`: autoencoder reconstruction-loss history, when learned descriptors are enabled
-- compatibility copies for older local analysis or dashboard readers
-
-## Current Repository Direction
-
-The current v2 branch keeps the main repository focused on the core research code:
-
-- Standard CEXO experiments
-- Bulleen practical case study
-- MAP-Elites and NSGA-II baselines
-- Export formats for future app visualization
-
-The Streamlit dashboard remains separate for now. Once the main v2 code and case-study outputs are stable, the dashboard can be updated to read both standard CEXO and Bulleen outputs.
-
-## License
-
-MIT License.
