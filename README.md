@@ -12,6 +12,8 @@
 
 This project presents CEXO, a hybrid optimization framework that integrates MAP-Elites and NSGA-II to generate diverse and high-performing construction site layouts.
 
+🔗 **Streamlit Dashboard Application for CSLP-Elites**: [🚧UNDER CONSTRUCTION🚧]
+
 ## 🎯Key Features
 - **Three optimization algorithms** with comparative modes
 - **Multi-objective optimization** (3 objectives: Safety, Efficiency, Adaptability)
@@ -217,6 +219,8 @@ CEXO and MAP-Elites both populate a 20x20 behavioral grid, but they differ in ho
 
 #### 4️⃣Layout Showcase
 
+🔗 A 2D-to-3D transformation Streamlit application is currently under construction. Please stay tuned!
+
 🔸**2D Layouts**
 
 | **CEXO** | **MAP-Elites** | **NSGA-II** |
@@ -238,13 +242,19 @@ Representative layouts highlight the practical difference between approaches:
 ## Case Study
 
 **North East Link Bulleen Interchange Construction Site**
-A practical case study is provided under `examples/bulleen_study`. This example uses the same CEXO model as the main synthetic study, with different site parameters.
+A practical case study is provided under `examples/bulleen_study`. This example uses the same CEXO model as the main synthetic study, with different site parameters and newly added road constraint.
 
 | **Ground truth** | **Site boundary** | **CEXO result** |
 |----------|----------------|-------------|
 | <img src="assets/bulleen_site.png" style="height:260px; width:auto; object-fit:contain;"> | <img src="assets/bulleen_boundary.png" style="height:260px; width:auto; object-fit:contain;"> | <img src="assets/bulleen_result.png" style="height:260px; width:auto; object-fit:contain;"> |
 
-CEXO v2 includes a Bulleen practical case study for testing the optimizer with an approximate irregular site boundary, fixed access points, road/access exclusions, and practical facility mixes. For the detailed setup and runnable commands, see [case_studies/bulleen](case_studies/bulleen/README.md).
-The 2D-to-3D Streamlit visualization workflow is maintained separately and can be updated after the main CEXO repository is stable:
+To run:
+```powershell
+command
+```
 
-[Streamlit dashboard repository](https://github.com/ClanPing/CSLP-Elites-App.git)
+## 📑Bibtex
+If you find this project helpful for your research, please consider citing the report and giving a ⭐.
+```
+text
+```
