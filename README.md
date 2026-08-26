@@ -221,7 +221,7 @@ CEXO and MAP-Elites both populate a 20x20 behavioral grid, but they differ in ho
 
 | **CEXO** | **MAP-Elites** | **NSGA-II** |
 |----------|----------------|-------------|
-| <img src="assets/cslpelites_layouts.png" width="100%"> | <img src="assets/mapelites_layouts.png" width="100%"> | <img src="assets/nsga2_layouts.png" width="100%"> |
+| <img src="assets/cexo_layouts.png" width="100%"> | <img src="assets/mapelites_layouts.png" width="100%"> | <img src="assets/nsga2_layouts.png" width="100%"> |
 
 Representative layouts highlight the practical difference between approaches:
 
