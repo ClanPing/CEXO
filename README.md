@@ -64,25 +64,25 @@ pip install -r requirements.txt
 ```
 
 ## 🚀Quick Start
-🔹CEXO: Multi-objective optimisation + Quality-diversity algorithm.
+🔹**CEXO**: Multi-objective optimisation + Quality-diversity algorithm.
 ```powershell
 python main.py --facilities 5 --iterations 1000 --initial-pop 100 --seed 42 --visualize
 ```
 
 CEXO can be compared against two baseline methods:
 
-🔹NSGA-II: Multi-objective optimisation only.
+🔹**NSGA-II**: Multi-objective optimisation only.
 ```powershell
 python run_nsga2.py --facilities 5 --population 200 --generations 300 --seed 42 --visualize
 ```
 
-🔹MAP-Elites: Quality-diversity algorithm only.
+🔹**MAP-Elites**: Quality-diversity algorithm only.
 ```powershell
 python run_mapelites.py --facilities 5 --iterations 15000 --initial-pop 500 --seed 42 --visualize
 ```
 
 <details>
-<summary><span style="font-weight: bold;">Detailed command arguments and outputs:</span></summary>
+<summary><span style="font-weight: bold;">Detailed command arguments and outputs: (Click here to expand)</span></summary>
 
 1️⃣**Core parameters**
 
@@ -188,11 +188,11 @@ This section summarises the comparative evaluation between **CSLP-Elites**, **MA
 
 ### Quantitative Comparison
 
-| Algorithm | Feasible Solutions (%) | Safety Threshold Solutions (%) | Behavioral Coverage (%) | Distinct Layouts | Avg Safety | Avg Efficiency | Avg Adaptability |
-|:----------|:----------------------:|:-----------------------:|:-----------------------:|:----------------:|:----------:|:--------------:|:----------------:|
-| **CEXO** | **31.5 (535/535)** | 55.3 | 221 | **0.989** | 0.695 | 0.515 |
-| **MAP-Elites** | 92 (247/268) | **67.0** | 268 | 0.897 | 0.733 | 0.545 |
-| **NSGA-II** | 4 (8/195) | ~7.6 | 195 | 0.859 | **0.863** | **0.588** |
+| Algorithm | Feasible Solutions (%) | Behavioral Coverage (%) | Distinct Layouts | Avg Safety | Avg Efficiency | Avg Adaptability |
+|:----------|:----------------------:|:-----------------------:|:----------------:|:----------:|:--------------:|:----------------:|
+| **CEXO** | 83.9 (333/397) | 99.2 | 391 | 0.985 | 0.707 | 0.492 |
+| **MAP-Elites** | 31.7 (89/281) | 70.2 | 281 | 0.868 | 0.751 | 0.543 |
+| **NSGA-II** | 5 (5/100) | - | 100 | 0.766 | 0.748 | 0.599 |
 
 **Summary**
 
@@ -206,7 +206,7 @@ This section summarises the comparative evaluation between **CSLP-Elites**, **MA
 
 | **CEXO** | **MAP-Elites** |
 |----------|----------------|
-| <p align="center"><img src="assets/cslpelites_archive.png" width="260px"></p> | <p align="center"><img src="assets/mapelites_archive.png" width="260px"></p> |
+| <p align="center"><img src="assets/cexo_archive.png" width="260px"></p> | <p align="center"><img src="assets/mapelites_archive.png" width="260px"></p> |
 
 </div>
 
