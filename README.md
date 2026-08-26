@@ -89,7 +89,7 @@ python run_mapelites.py --facilities 5 --iterations 15000 --initial-pop 500 --se
 1️⃣**Core parameters**
 
 | Argument | Default | Purpose | Example |
-|---|---:|---|---|
+|---|:---:|---|:---:|
 | `--facilities` | `5` | Sets the total number of facilities when using the automatic facility mix. | `--facilities 6` |
 | `--facility-mix` | Auto-generated | Manually sets the exact facility types and counts. Overrides `--facilities`. | `--facility-mix core=2,crane=1,storage=2,office=1,rest_area=1` |
 | `--iterations` | `10000` | Sets the number of CEXO optimisation iterations. | `--iterations 15000` |
@@ -239,9 +239,10 @@ Representative layouts highlight the practical difference between approaches:
 <img src="assets/views.png" alt="2D-to-3D layout view" width="800"/>
 </p>
 
-## Case Study
+## 💼Case Study
 
 **North East Link Bulleen Interchange Construction Site**
+
 A practical case study is provided under `examples/bulleen_study`. This example uses the same CEXO model as the main synthetic study, with different site parameters and newly added road constraint.
 
 | **Ground truth** | **Site boundary** | **CEXO result** |
@@ -250,8 +251,50 @@ A practical case study is provided under `examples/bulleen_study`. This example 
 
 To run:
 ```powershell
-###command###
+# Full run:
+cd examples\bulleen_study
+python run_bulleen_cexo_pipeline.py
+
+# Quick run:
+python run_bulleen_cexo_pipeline.py --output results\cexo_bulleen_quick_review --iterations 1000 --initial-pop 100 --export-count 50
+
+# Show all Bulleen case-study command-line options:
+python run_bulleen_cexo_pipeline.py --help
 ```
+<details>
+<summary><span style="font-weight: bold;">Detailed parameters information and command arguments: (Click here to expand)</span></summary>
+
+1️⃣**Default parameters**
+
+| Parameter | Default | Description |
+|---|:---:|---|
+| Core | 2 | Main construction/core work zones. |
+| Crane | 2 | Crane facilities with operating and safety zones. |
+| Storage | 10 | Material storage and logistics zones. |
+| Office | 5 | Worker/management facilities. |
+| Rest area | 4 | Worker welfare/rest facilities. |
+| Total facilites | 23 | Total fixed facilities quantity mix of practical Bulleen study. |
+| Iterations | 15000 | Number of CEXO optimisation iterations. |
+| Initial population | 500 | Number of initial layouts used to seed the archive. |
+| Archive grid | 20 x 20 | Learned behavioural archive resolution. |
+| Latent dimension | 2 | Autoencoder behavioural descriptor dimension. |
+| Seed | 42 | Random seed for reproducible optimisation. |
+| Site scale | 300m x 250m | Export scale used for layout JSON and 3D visualisation. |
+
+2️⃣**Command arguments**
+
+| Argument | Default | Purpose | Example |
+|---|:---:|---|:---:|
+| `--iterations` | 15000 | Adjusts the optimisation budget. | `--iterations 1000` |
+| `--initial-pop` | 500 | Adjusts the initial population size. | `--initial-pop 100` |
+| `--seed` | 42 | Controls reproducibility. | `--seed 123` |
+| `--ouput` | `results\` | Sets the output directory. | `--output results\cexo_bulleen_review` |
+| `export-count` | All safety-threshold layouts | Exports only the top `N` layout JSON/PNG pairs. | `--export-count 50` |
+| `--no-export-pngs` | False | Exports layout JSON files only. | `--no-export-pngs` |
+| `--export-unsafe` | False | Includes layouts below the safety threshold. | `--export-unsafe` |
+| `--skip-optimizer` | False | Regenerates figures from an existing result folder without rerunning optimisation. | `--skip-optimizer --output results\cexo_bulleen_15000_full_fg` |
+
+</details>
 
 ## 📑Bibtex
 If you find this project helpful for your research, please consider citing the report and giving a ⭐.
