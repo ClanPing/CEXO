@@ -175,7 +175,7 @@ This section summarises the comparative evaluation between **CSLP-Elites**, **MA
 - CEXO / MAP-Elites: 500 initial layouts + 15,000 optimisation iterations
 - NSGA-II: population 100 x 150 generations, with a comparable number of evaluated layouts
 
-### Algorithm Overview
+#### 1️⃣Algorithm Overview
 
 | Aspect | **CEXO** | **MAP-Elites** | **NSGA-II** |
 |--------|----------|----------------|-------------|
@@ -186,7 +186,7 @@ This section summarises the comparative evaluation between **CSLP-Elites**, **MA
 | Constraint handling | Safety-aware archive selection | Scalar penalty based | Objective-space selection |
 | Best use case | Balanced exploration with deployable alternatives | Wide spatial pattern discovery | Objective trade-off search |
 
-### Quantitative Comparison
+#### 2️⃣Quantitative Comparison
 
 | Algorithm | Feasible Solutions (%) | Behavioral Coverage (%) | Distinct Layouts | Avg Safety | Avg Efficiency | Avg Adaptability |
 |:----------|:----------------------:|:-----------------------:|:----------------:|:----------:|:--------------:|:----------------:|
@@ -200,7 +200,7 @@ This section summarises the comparative evaluation between **CSLP-Elites**, **MA
 - **MAP-Elites** explores many behavioral cells, but can include less feasible layouts when objectives are reduced to a scalar fitness.
 - **NSGA-II** optimizes the objective trade-off directly, but does not preserve broad behavioral diversity.
 
-## Behavioral Archive Comparison
+#### 3️⃣Behavioral Archive Comparison
 
 <div align="center">
 
@@ -215,9 +215,9 @@ CEXO and MAP-Elites both populate a 20x20 behavioral grid, but they differ in ho
 - **MAP-Elites** keeps one best scalar-fitness layout per occupied behavioral cell.
 - **CEXO** keeps a bounded Pareto set per occupied cell, allowing multiple high-quality trade-off layouts in the same behavioral region.
 
-## Layout Showcase
+#### 4️⃣Layout Showcase
 
-### 2D Layouts
+🔸**2D Layouts**
 
 | **CEXO** | **MAP-Elites** | **NSGA-II** |
 |----------|----------------|-------------|
@@ -229,7 +229,7 @@ Representative layouts highlight the practical difference between approaches:
 - **MAP-Elites** generates diverse spatial patterns, but some may violate site constraints.
 - **CEXO** aims to preserve layout diversity while maintaining safety-aware, multi-objective trade-offs.
 
-### 3D Layouts
+🔸**3D Layouts**
 
 <p align="center">
 <img src="assets/views.png" alt="2D-to-3D layout view" width="800"/>
