@@ -12,7 +12,7 @@
 
 This project presents CEXO, a hybrid optimization framework that integrates MAP-Elites and NSGA-II to generate diverse and high-performing construction site layouts.
 
-🔗 **Streamlit Dashboard Application for CSLP-Elites**: [🚧UNDER CONSTRUCTION🚧]
+🔗 **Streamlit Dashboard Application for CEXO**: [🚧UNDER CONSTRUCTION🚧]
 
 ## 🎯Key Features
 - **Three optimization algorithms** with comparative modes
@@ -166,7 +166,7 @@ python analysis.py --help
 
 ### Comparative Performance
 
-This section summarises the comparative evaluation between **CSLP-Elites**, **MAP-Elites**, and **NSGA-II** under identical experimental settings:
+This section summarises the comparative evaluation between **CEXO**, **MAP-Elites**, and **NSGA-II** under identical experimental settings:
 
 - Problem setup: 6 facilities
 - Behavioural archive: 20x20 behavioral grid (400 cells)
@@ -214,8 +214,8 @@ This section summarises the comparative evaluation between **CSLP-Elites**, **MA
 
 CEXO and MAP-Elites both populate a 20x20 behavioral grid, but they differ in how quality is stored:
 
-- **MAP-Elites** keeps one best scalar-fitness layout per occupied behavioral cell.
 - **CEXO** keeps a bounded Pareto set per occupied cell, allowing multiple high-quality trade-off layouts in the same behavioral region.
+- **MAP-Elites** keeps one best scalar-fitness layout per occupied behavioral cell.
 
 #### 4️⃣Layout Showcase
 
@@ -229,9 +229,9 @@ CEXO and MAP-Elites both populate a 20x20 behavioral grid, but they differ in ho
 
 Representative layouts highlight the practical difference between approaches:
 
-- **NSGA-II** tends to produce similar-looking layouts with subtle coordinate shifts.
-- **MAP-Elites** generates diverse spatial patterns, but some may violate site constraints.
 - **CEXO** aims to preserve layout diversity while maintaining safety-aware, multi-objective trade-offs.
+- **MAP-Elites** generates diverse spatial patterns, but some may violate site constraints.
+- **NSGA-II** tends to produce similar-looking layouts with subtle coordinate shifts.
 
 🔸**3D Layouts**
 
@@ -250,11 +250,11 @@ A practical case study is provided under `examples/bulleen_study`. This example 
 
 To run:
 ```powershell
-command
+###command###
 ```
 
 ## 📑Bibtex
 If you find this project helpful for your research, please consider citing the report and giving a ⭐.
 ```
-text
+###text###
 ```
