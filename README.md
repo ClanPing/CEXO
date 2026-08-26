@@ -235,7 +235,14 @@ Representative layouts highlight the practical difference between approaches:
 <img src="assets/views.png" alt="2D-to-3D layout view" width="800"/>
 </p>
 
-## Bulleen Case Study
+## Case Study
+
+**North East Link Bulleen Interchange Construction Site**
+A practical case study is provided under `examples/bulleen_study`. This example uses the same CEXO model as the main synthetic study, with different site parameters.
+
+| **Ground truth** | **Site boundary** | **CEXO result** |
+|----------|----------------|-------------|
+| <img src="assets/bulleen_site.png" style="height:260px; width:auto; object-fit:contain;"> | <img src="assets/bulleen_boundary.png" style="height:260px; width:auto; object-fit:contain;"> | <img src="assets/bulleen_result.png" style="height:260px; width:auto; object-fit:contain;"> |
 
 CEXO v2 includes a Bulleen practical case study for testing the optimizer with an approximate irregular site boundary, fixed access points, road/access exclusions, and practical facility mixes. For the detailed setup and runnable commands, see [case_studies/bulleen](case_studies/bulleen/README.md).
 The 2D-to-3D Streamlit visualization workflow is maintained separately and can be updated after the main CEXO repository is stable:
