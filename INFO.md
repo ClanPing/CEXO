@@ -1,12 +1,12 @@
-# CEXO Project Information
+# Project Information
 
-CEXO aims to **generate diverse and high-performing construction site layouts** that balance safety, operational efficiency, and adaptability. The framework combines objective functions, behavioral descriptors, quality-diversity archiving, Pareto selection, and genetic search operators.
+In CEXO, our goal is to **generate diverse and high-performing construction site layouts** that balance safety, efficiency, and adaptability. To achieve this, the framework combines objective functions, behavioural descriptors, Pareto archiving, and genetic search operators.
 
-This page documents the implementation-level formulation used in the repository. It does not introduce or modify literature references; it describes how layouts are generated, evaluated, and categorized in CEXO.
+- **Objective Functions** measure how well a layout performs against practical goals, such as maintaining safety distances, reducing material handling distance, improving equipment accessibility, and preserving future adaptability. They guide the optimisation process toward high-quality and feasible configurations.
 
-- **Objective Functions** measure how well a layout performs against practical goals such as safety clearance, material flow, equipment accessibility, and future adaptability.
-- **Behavioral Descriptors (BDs)** describe how layouts differ spatially and functionally, allowing the archive to preserve multiple layout patterns instead of only one best solution.
-- **Learned Descriptors** are available in CEXO v2 through an autoencoder. The hand-crafted descriptors documented below remain useful for interpretation, baselines, and `--no-learned` runs.
+- **Behavioural Descriptors (BDs)** describe how layouts differ in their spatial and functional organisation, such as clustered versus dispersed facility placement and embedded versus separated worker-support areas. They encourage exploration of the design space by preserving variation across behavioural dimensions.
+
+- **Autoencoder-learned Descriptors** extend the hand-crafted behavioural descriptors with an autoencoder-based representation. In the default CEXO mode, generated layouts are encoded into a learned two-dimensional latent space, allowing the archive to organise design diversity from the layout patterns observed during optimisation.
 
 <p align="center">
 <img src="assets/model.png" alt="Workflow Overview" width="700"/>
@@ -16,199 +16,216 @@ This page documents the implementation-level formulation used in the repository.
   <em>CEXO model</em>
 </p>
 
-This page is organised into four sections:
+This section separates into 5 main sections:
 
 - [Layout Configurations](#layout-configurations)
 - [Constraints](#constraints)
 - [Objective Functions](#objective-functions)
 - [Behavioral Descriptors](#behavioral-descriptors)
+- [Autoencoder-Learned Descriptors](#autoencoder-learned-descriptors)
 
 ---
 
 <h2 id="layout-configurations">🏗️ Layout Configurations</h2>
 
+The standard benchmark uses a normalised 2D planning domain:
+
+$$
+[0,1] \times [0,1]
+$$
+
+Each facility is represented as a 2D rectangle with a centre point, width, depth, and facility type. The standard facility dimensions are:
+
 <p align="center">
 <img src="assets/config.png" alt="Facility types">
 </p>
 
-## Facility Selection Range
+Default CEXO parameters are:
 
-- **Minimum Facilities**: 3
-  - Always includes: `core`, `crane`, `storage`
+| Parameter | Default value |
+|---|:---:|
+| Facilities | 5 |
+| Boundary margin | 0.08 |
+| Entrance clearance | 0.15 |
+| Crane danger radius | 0.25 |
+| Minimum crane-to-crane clearance | 0.50 |
+| Archive grid size | 20 x 20 cells |
+| Max Pareto elites per cell | 12 |
+| Autoencoder latent dimensions | 2 |
+| Random seed | 42 |
 
-- **Maximum Facilities**: 8 for the standard synthetic benchmark
-  - Includes all five facility types plus additional operational facilities
-
-- **Default Standard Configuration**: 6 facilities
-  - Typical mix: `core`, `crane`, `storage`, `office`, `rest_area`, plus one additional operational facility
-
-The standard facility generator follows this pattern:
+The automatic facility mix follows this rule:
 
 ```text
-If count >= 3:  add [core, crane, storage]
-If count >= 5:  add [office, rest_area]
-If count > 5:   fill remaining slots with [core, storage, crane]
-Finally:        shuffle order randomly using the selected seed
+If count >= 3: add core, crane, storage
+If count >= 5: add office, rest_area
+If count > 5: fill remaining slots from core, storage, crane
+Finally: shuffle using the selected seed
 ```
 
-**Example generations** using the default seed:
+For seed `42`, example generated mixes are:
 
-| Count | Facility Mix | Breakdown |
-|-------|--------------|-----------|
-| 3 | `['storage', 'core', 'crane']` | 3 operational only |
-| 4 | `['storage', 'core', 'crane', 'crane']` | 3 operational + 1 extra operational |
-| 5 | `['storage', 'core', 'crane', 'rest_area', 'office']` | 3 operational + 2 worker |
-| 6 | `['storage', 'core', 'crane', 'rest_area', 'office', 'storage']` | Balanced + 1 extra operational |
-| 7 | `['storage', 'core', 'crane', 'rest_area', 'office', 'storage', 'crane']` | Balanced + 2 extra operational |
-| 8 | `['storage', 'core', 'crane', 'rest_area', 'office', 'storage', 'crane', 'storage']` | Full standard site |
+| Facility count | Generated facility mix | Breakdown |
+|---|---|---|
+| 3 | `crane`, `core`, `storage` | 3 operational/equipment facilities |
+| 4 | `storage`, `crane`, `crane`, `core` | 3 core facilities plus 1 extra operational/equipment facility |
+| 5 | `office`, `crane`, `storage`, `rest_area`, `core` | 3 operational/equipment facilities plus 2 worker facilities |
+| 6 | `crane`, `office`, `rest_area`, `storage`, `crane`, `core` | balanced mix plus 1 extra operational/equipment facility |
+| 7 | `office`, `rest_area`, `core`, `crane`, `storage`, `crane`, `core` | balanced mix plus 2 extra operational/equipment facilities |
+| 8 | `core`, `office`, `storage`, `core`, `crane`, `core`, `crane`, `rest_area` | balanced mix plus 3 extra operational/equipment facilities |
 
-## Bulleen Practical Case
+Users can override the automatic mix with:
 
-The Bulleen case study uses the same CEXO methodology with a more constrained site setup:
-
-- An approximate irregular boundary polygon
-- Three fixed entrance/access points
-- Thin road/access corridor exclusion zones
-- A fixed or sampled practical facility mix
-
-The detailed Bulleen setup is documented in [case_studies/bulleen](case_studies/bulleen/README.md).
+```shell
+python main.py --facility-mix core=2,crane=1,storage=2,office=1,rest_area=1
+```
 
 ---
 
 <h2 id="constraints">🚧 Constraints</h2>
 
-These feasibility requirements are checked during layout evaluation and repair.
+These are feasibility requirements that all valid layouts must meet:
 
-## 1. Boundary Compliance
+### 1️⃣Boundary Compliance
 
-All facilities must remain within the site boundary. For the standard rectangular site, the default boundary margin is:
-
-$$m = 0.03$$
-
-The safety objective applies a small additional checking margin:
-
-$$m_{\mathrm{eff}} = m + 0.01$$
-
-For a rectangular site, each facility must remain inside:
-
-$$m_{\mathrm{eff}} \leq x_i - \frac{w_i}{2}, \quad x_i + \frac{w_i}{2} \leq 1 - m_{\mathrm{eff}}$$
-
-$$m_{\mathrm{eff}} \leq y_i - \frac{d_i}{2}, \quad y_i + \frac{d_i}{2} \leq 1 - m_{\mathrm{eff}}$$
-
-where:
-
-- $(x_i, y_i)$ = centre position of facility $i$
-- $w_i, d_i$ = facility width and depth
-- $m_{\mathrm{eff}}$ = effective boundary checking margin
-
-For polygonal sites such as Bulleen, the facility footprint must remain inside the polygonal boundary and outside configured exclusion zones.
+All facilities must remain within the site boundary.
 
 <p align="center">
 <img src="assets/constraint1.png" alt="Boundary compliance constraint" width="550">
 </p>
 
-## 2. No Overlapping Facilities
+The effective checking margin is:
 
-Facilities cannot physically overlap each other.
+$$
+m_{\mathrm{eff}} = m + 0.01
+$$
 
-$$C_2: \quad \forall i \neq j, \quad A_{\mathrm{overlap}}(f_i, f_j) = 0$$
+where $m$ is the configured boundary margin.
+
+For each facility $i$:
+
+$$
+m_{\mathrm{eff}} \leq x_i - \frac{w_i}{2}, \quad
+x_i + \frac{w_i}{2} \leq 1 - m_{\mathrm{eff}}
+$$
+
+$$
+m_{\mathrm{eff}} \leq y_i - \frac{d_i}{2}, \quad
+y_i + \frac{d_i}{2} \leq 1 - m_{\mathrm{eff}}
+$$
 
 where:
 
-- $f_i, f_j$ = facility rectangles
-- $A_{\mathrm{overlap}}(\cdot, \cdot)$ = 2D rectangular intersection area
+- $(x_i, y_i)$ is the centre position of facility $i$.
+- $w_i$ is the facility width.
+- $d_i$ is the facility depth.
+- $m_{\mathrm{eff}}$ is the effective boundary checking margin.
 
-The implementation scores overlap using both the number of overlapping pairs and the total overlap area, so small violations receive a smaller penalty than severe clashes.
+
+### 2️⃣No Overlapping Facilities
+
+Facilities cannot physically overlap each other.
 
 <p align="center">
 <img src="assets/constraint2.png" alt="No overlap constraint" width="550">
 </p>
 
-## 3. Safety Clearances
+$$
+C_{\mathrm{overlap}}: \quad
+\forall i \neq j,\quad A_{\mathrm{overlap}}(f_i, f_j) = 0
+$$
 
-CEXO checks three practical safety relationships:
+where:
 
-- Crane-to-crane clearance to reduce collision risk
-- Crane danger zones around worker facilities
-- Entrance/access clearance around all facilities
+- $f_i$ and $f_j$ are facility rectangles.
+- $A_{\mathrm{overlap}}(f_i, f_j)$ is the 2D rectangular intersection area.
 
-The current default values are:
+The implementation scores overlap using both the number of overlapping pairs and the total overlap area, so minor clashes receive smaller penalties than severe clashes.
 
-| Parameter | Default |
-|-----------|---------|
-| Crane danger radius | `0.14` |
-| Minimum crane-to-crane clearance | `2 x danger_radius = 0.28` |
-| Entrance clearance | `0.08` |
-| Facility clearance buffer | `0.006` |
-
----
 
 <h2 id="objective-functions">🎯 Objective Functions</h2>
 
-CEXO evaluates each layout using three objective scores:
+CEXO evaluates each layout with three objective scores:
 
-$$\mathbf{O} = (O_1, O_2, O_3)$$
+$$
+\mathbf{O} = (O_1, O_2, O_3)
+$$
 
 where:
 
-- $O_1$ = safety and constraint compliance
-- $O_2$ = operational efficiency
-- $O_3$ = layout adaptability
+- $O_1$ is safety and constraint compliance.
+- $O_2$ is operational efficiency.
+- $O_3$ is layout adaptability.
 
-Each score is clipped to $[0, 1]$, where higher is better.
+Each objective is clipped to $[0,1]$, where higher is better.
 
-## 1. Safety and Constraint Compliance
+### 1️⃣Safety and Constraint Compliance
 
 Safety combines boundary compliance, overlap compliance, and critical safety clearance:
-
-$$O_1 = 0.4 C_{\mathrm{boundary}} + 0.3 C_{\mathrm{overlap}} + 0.3 C_{\mathrm{safety}}$$
-
-The safety component includes crane clearance, crane danger-zone checks, and entrance/access clearance. For worker facility $j$ near a crane:
-
-$$P_{\mathrm{danger}}(j) =
-\begin{cases}
-0 & \text{if } d_j \geq r_{\mathrm{danger}} \\
-\frac{r_{\mathrm{danger}} - d_j}{r_{\mathrm{danger}}} & \text{if } d_j < r_{\mathrm{danger}}
-\end{cases}$$
-
-where:
-
-- $d_j$ = distance from worker facility $j$ to the nearest crane
-- $r_{\mathrm{danger}} = 0.14$
-- worker facilities are `office` and `rest_area`
 
 <p align="center">
 <img src="assets/objective1.png" alt="Objective function 1" width="550">
 </p>
 
-**Function**: `calculate_safety_compliance(facilities, entrances, config)`
+$$
+O_1 = 0.4C_{\mathrm{boundary}} + 0.3C_{\mathrm{overlap}} + 0.3C_{\mathrm{safety}}
+$$
 
-Returns: `(safety_score, feasible_flag, violation_list)`
+The safety component includes:
 
-## 2. Operational Efficiency
+- crane-to-crane clearance;
+- crane danger-zone checks around worker facilities;
+- entrance/access clearance around all facilities.
 
-Operational efficiency measures material movement, crane coverage, access, and worker-support clustering:
+For a worker facility near a crane:
 
-$$O_2 =
-0.25 E_{\mathrm{flow}}
-+ 0.25 E_{\mathrm{access}}
-+ 0.20 E_{\mathrm{crane-core}}
-+ 0.15 E_{\mathrm{entrance}}
-+ 0.15 E_{\mathrm{worker-cluster}}$$
+$$
+P_{\mathrm{danger}} =
+\begin{cases}
+0, & d \geq r_{\mathrm{danger}} \\
+\frac{r_{\mathrm{danger}} - d}{r_{\mathrm{danger}}}, & d < r_{\mathrm{danger}}
+\end{cases}
+$$
 
 where:
 
-- $E_{\mathrm{flow}}$ = material flow efficiency
-- $E_{\mathrm{access}}$ = crane/equipment accessibility over work areas
-- $E_{\mathrm{crane-core}}$ = crane operating coverage of core work zones
-- $E_{\mathrm{entrance}}$ = office access to entrances
-- $E_{\mathrm{worker-cluster}}$ = clustering quality of office and rest modules
+- $d$ is the distance from the worker facility to the crane.
+- $r_{\mathrm{danger}} = 0.25$ in the standard benchmark.
+- Worker facilities are `office` and `rest_area`.
+
+For the standard benchmark:
+
+| Safety parameter | Value |
+|---|:---:|
+| Crane danger radius | 0.25 |
+| Minimum crane-to-crane clearance | 0.50 |
+| Entrance clearance | 0.15 |
+
+**Function**: `calculate_safety_compliance(facilities, entrances, config)`
+
+**Returns**: `(safety_score, feasible_flag, violation_list)`
+
+### 2️⃣Operational Efficiency
+
+Operational efficiency measures material movement, crane accessibility, crane-core coverage, entrance access, and worker-support clustering:
 
 <p align="center">
 <img src="assets/objective2.png" alt="Objective function 2" width="650">
 </p>
 
-### Material Flow Efficiency
+$$
+O_2 = 0.25E_{\mathrm{flow}} + 0.25E_{\mathrm{access}} + 0.20E_{\mathrm{crane-core}} + 0.15E_{\mathrm{entrance}} + 0.15E_{\mathrm{worker-cluster}}
+$$
+
+where:
+
+- $E_{\mathrm{flow}}$ is material flow efficiency.
+- $E_{\mathrm{access}}$ is crane/equipment accessibility over work areas.
+- $E_{\mathrm{crane-core}}$ is crane operating-radius coverage of core work zones.
+- $E_{\mathrm{entrance}}$ is office access to site entrances.
+- $E_{\mathrm{worker-cluster}}$ is clustering quality of worker-support facilities.
+
+#### 🔹Material Flow Efficiency
 
 Critical material flows are:
 
@@ -216,192 +233,238 @@ Critical material flows are:
 - `crane -> core`
 - `storage -> crane`
 
-$$E_{\mathrm{flow}} = 1 - \frac{\bar{d}_{\mathrm{flow}}}{d_{\max}}$$
+Material flow efficiency is:
 
-where:
+$$
+E_{\mathrm{flow}} =
+1 - \frac{\bar{d}_{\mathrm{flow}}}{\sqrt{2} \times 0.8}
+$$
 
-- $\bar{d}_{\mathrm{flow}}$ = average critical-flow distance
-- $d_{\max} = \sqrt{2} \times 0.8$
+where $\bar{d}_{\mathrm{flow}}$ is the average distance across the critical material-flow pairs.
 
-### Equipment Accessibility
+#### 🔹Crane Accessibility
 
-Crane accessibility uses the current crane specification:
+Crane accessibility uses:
 
-| Parameter | Default |
-|-----------|---------|
-| Optimal reach | `0.20` |
-| Operating radius | `0.26` |
+| Parameter | Value |
+|---|:---:|
+| Optimal reach | 0.25 |
+| Operating radius | 0.40 |
 
 For a work area $w$:
 
-$$C_w =
+$$
+C_w =
 \begin{cases}
-1.0 & \text{if } d_w \leq r_{\mathrm{optimal}} \\
-1.0 - 0.4\frac{d_w-r_{\mathrm{optimal}}}{r_{\mathrm{operating}}-r_{\mathrm{optimal}}} & \text{if } r_{\mathrm{optimal}} < d_w \leq r_{\mathrm{operating}} \\
-0.0 & \text{if } d_w > r_{\mathrm{operating}}
-\end{cases}$$
+1.0, & d_w \leq r_{\mathrm{optimal}} \\
+1.0 - 0.4\frac{d_w-r_{\mathrm{optimal}}}{r_{\mathrm{operating}}-r_{\mathrm{optimal}}}, & r_{\mathrm{optimal}} < d_w \leq r_{\mathrm{operating}} \\
+0.0, & d_w > r_{\mathrm{operating}}
+\end{cases}
+$$
 
-Multiple cranes can add a redundancy bonus when more than one crane provides meaningful coverage.
+Multiple cranes can add a redundancy bonus when more than one crane provides meaningful coverage of the same work area.
 
-### Work Sequence and Worker Support
+#### 🔹Entrance Access and Worker Support
 
-Entrance access rewards offices that are close to entrances:
+Entrance access rewards offices that are close to site entrances:
 
-$$E_{\mathrm{entrance}} =
-\frac{1}{n_{\mathrm{offices}}}
-\sum_{o \in \mathrm{offices}}
-\max\left(0, 1 - \frac{d_{o,\mathrm{entrance}}}{0.4\sqrt{2}}\right)$$
+$$
+E_{\mathrm{entrance}} =
+\frac{1}{n_{\mathrm{office}}}
+\sum_{o \in \mathrm{office}}
+\max\left(0, 1 - \frac{d_{o,\mathrm{entrance}}}{0.4\sqrt{2}}\right)
+$$
 
 Worker-support clustering rewards offices and rest areas that form a coherent support zone rather than being scattered without functional relationship.
 
 **Function**: `calculate_operational_efficiency(facilities, entrances)`
 
-Returns: `efficiency_score ∈ [0, 1]`
+**Returns**: `efficiency_score` in `[0,1]`
 
-## 3. Layout Adaptability
+### 3️⃣Layout Adaptability
 
-Layout adaptability measures future flexibility, expansion capacity, and reconfiguration potential:
-
-$$O_3 = 0.4 A_{\mathrm{expansion}} + 0.35 A_{\mathrm{redundancy}} + 0.25 A_{\mathrm{reconfig}}$$
-
-where:
-
-- $A_{\mathrm{expansion}}$ = expansion potential
-- $A_{\mathrm{redundancy}}$ = route redundancy
-- $A_{\mathrm{reconfig}}$ = reconfiguration ease
+Layout adaptability measures expansion capacity, route redundancy, and reconfiguration ease:
 
 <p align="center">
 <img src="assets/objective3.png" alt="Objective function 3" width="650">
 </p>
 
-### Expansion Potential
-
-Expansion potential measures available space on a 25 x 25 grid:
-
-$$A_{\mathrm{expansion}} = \frac{n_{\mathrm{available\_cells}}}{n_{\mathrm{usable\_cells}}}$$
+$$
+O_3 = 0.4A_{\mathrm{expansion}} + 0.35A_{\mathrm{redundancy}} + 0.25A_{\mathrm{reconfig}}
+$$
 
 where:
 
-- $n_{\mathrm{usable\_cells}}$ = grid cells inside the boundary margin
-- $n_{\mathrm{available\_cells}}$ = usable cells not occupied by facilities
+- $A_{\mathrm{expansion}}$ is expansion potential.
+- $A_{\mathrm{redundancy}}$ is route redundancy.
+- $A_{\mathrm{reconfig}}$ is reconfiguration ease.
 
-### Route Redundancy
+#### 🔹Expansion Potential
 
-Route redundancy evaluates alternative path availability for key facility pairs:
+Expansion potential is measured on a 10 x 10 grid:
 
-$$A_{\mathrm{redundancy}} =
+$$
+A_{\mathrm{expansion}} =
+\frac{n_{\mathrm{available\ cells}}}{n_{\mathrm{usable\ cells}}}
+$$
+
+where:
+
+- $n_{\mathrm{usable\ cells}}$ is the number of cells inside the boundary margin.
+- $n_{\mathrm{available\ cells}}$ is the number of usable cells not occupied by facilities.
+
+#### 🔹Route Redundancy
+
+Route redundancy evaluates distance variation across key facility relationships:
+
+$$
+\mathrm{keyPairs} =
+\{(\mathrm{office}, \mathrm{core}),
+(\mathrm{storage}, \mathrm{core}),
+(\mathrm{crane}, \mathrm{storage})\}
+$$
+
+$$
+A_{\mathrm{redundancy}} =
 \frac{1}{n_{\mathrm{pairs}}}
 \sum_{p \in \mathrm{keyPairs}}
-\frac{1}{1 + 10 \times \mathrm{Var}(d_p)}$$
+\frac{1}{1 + 10 \times \mathrm{Var}(d_p)}
+$$
 
-where:
+Low distance variance indicates that key facility relationships have similar-length alternatives, which supports route redundancy.
 
-$$\mathrm{keyPairs} =
-\{(\mathrm{office}, \mathrm{core}),(\mathrm{storage}, \mathrm{core}),(\mathrm{crane}, \mathrm{storage})\}$$
+#### 🔹Reconfiguration Ease
 
-Low distance variance means multiple routes or facility relationships have similar lengths, which supports redundancy.
+Reconfiguration ease tests 20 candidate relocation positions per facility:
 
-### Reconfiguration Ease
-
-Reconfiguration ease tests random alternative positions for each facility:
-
-$$A_{\mathrm{reconfig}} =
+$$
+A_{\mathrm{reconfig}} =
 \frac{1}{n_{\mathrm{facilities}}}
 \sum_{f \in \mathrm{facilities}}
-\frac{n_{\mathrm{valid\_positions}}}{20}$$
+\frac{n_{\mathrm{valid\ positions}}}{20}
+$$
 
-where:
-
-- 20 candidate relocation positions are tested per facility
-- A relocation is valid if it remains inside the site boundary, avoids overlap, and stays within a reasonable relocation distance
+A relocation is valid if it remains inside the site boundary, avoids overlap, and stays within a reasonable relocation distance.
 
 **Function**: `calculate_layout_adaptability(facilities, entrances, config)`
 
-Returns: `adaptability_score ∈ [0, 1]`
+**Returns**: `adaptability_score` in `[0,1]`
 
 ---
 
 <h2 id="behavioral-descriptors">🎨 Behavioral Descriptors</h2>
 
-CEXO supports two descriptor modes:
+Hand-crafted behavioural descriptors provide interpretable axes for comparing layout patterns. They are used by the MAP-Elites baseline, by `--no-learned` CEXO runs, and as a reference for explaining spatial diversity.
 
-- **Learned descriptors**: the default v2 mode, using an autoencoder latent representation of generated layouts
-- **Hand-crafted descriptors**: used for `--no-learned`, baseline comparison, compatibility, and interpretation
+The limitation of hand-crafted descriptors is that they must be manually defined before optimisation. They can capture important known patterns, but they may miss unexpected layout structures or compress complex spatial differences into only a few predefined measures, since the search is based on the predefined descriptors.
 
-The hand-crafted descriptors are:
+### 1️⃣Spatial Organisation: Compactness vs Spread
 
-## 1. Same-Type Module Clustering vs Dispersion
+BD1 describes how compact, clustered, or spread the facility arrangement is. CEXO uses two related calculations depending on whether the layout contains repeated facility types:
 
-BD1 measures whether repeated modules of the same type are clustered together or dispersed across the site:
+<p align="center">
+  <img src="assets/bd1.png" alt="Behavioural descriptor 1" width="700">
+</p>
 
-$$BD_1 = \frac{\bar{d}_{\mathrm{nearest\_same\_type}}}{0.16}$$
+$$
+BD_1 =
+\begin{cases}
+\frac{\bar{d}_{\mathrm{nearest\ same\ type}}}{0.20}, & \text{if repeated facility types exist} \\
+\frac{\bar{d}_{\mathrm{centroid}}}{0.50}, & \text{if no facility type repeats}
+\end{cases}
+$$
 
 where:
 
-- $\bar{d}_{\mathrm{nearest\_same\_type}}$ = mean nearest-neighbour distance among modules of the same type
-- $BD_1 = 0$ indicates same-type modules are clustered
-- $BD_1 = 1$ indicates same-type modules are dispersed
+- $\bar{d}_{\mathrm{nearest\ same\ type}}$ is the average nearest-neighbour distance among modules of the same type.
+- $\bar{d}_{\mathrm{centroid}}$ is the mean distance from all facility centres to the global layout centroid.
+- Lower values indicate compact or clustered organisation.
+- Higher values indicate more dispersed organisation.
 
-When no repeated facility types exist, CEXO falls back to the older centroid-spread descriptor:
+Interpretation:
 
-$$BD_1 = \frac{\bar{d}_{\mathrm{centroid}}}{0.50}$$
-
-<p align="center">
-<img src="assets/bd1.png" alt="Behavioral descriptor 1" width="550">
-</p>
-
-| Value | Interpretation | Layout Pattern |
-|-------|----------------|----------------|
-| 0.0 - 0.3 | Strongly clustered | Same-type modules placed near each other |
-| 0.3 - 0.5 | Moderately clustered | Same-type modules remain near local groups |
-| 0.5 - 0.7 | Moderately dispersed | Same-type modules spread across several regions |
-| 0.7 - 1.0 | Highly dispersed | Same-type modules distributed widely |
+| BD1 range | Layout pattern |
+|:---:|---|
+| 0.0 - 0.3 | Very compact or strongly clustered |
+| 0.3 - 0.5 | Moderately compact or clustered |
+| 0.5 - 0.7 | Moderately distributed |
+| 0.7 - 1.0 | Highly spread or dispersed |
 
 **Function**: `calculate_compactness_vs_spread(facilities)`
 
-Compatibility alias: `calculate_spatial_organization(facilities)`
+**Compatibility alias**: `calculate_spatial_organization(facilities)`
 
-## 2. Worker-Operational Separation
+### 2️⃣Functional Integration: Worker-Operational Separation
 
-BD2 measures the spatial relationship between worker facilities and operational zones:
+BD2 measures the spatial relationship between worker facilities and operational zones. Lower values indicate stronger functional integration, while higher values indicate stronger worker-operational separation:
 
-$$BD_2 =
-\frac{
-0.6 \bar{d}_{\mathrm{nearest\_operational}}
-+ 0.4 d_{\mathrm{centroid\_separation}}
-}{0.28}$$
+<p align="center">
+  <img src="assets/bd2.png" alt="Behavioural descriptor 2" width="700">
+</p>
+
+$$
+BD_2 = \frac{0.6\bar{d}_{\mathrm{nearest\ operational}} + 0.4d_{\mathrm{centroid\ separation}}}{0.32}
+$$
 
 where:
 
-- worker facilities are `office` and `rest_area`
-- operational facilities are `core`, `storage`, and `crane`
-- $\bar{d}_{\mathrm{nearest\_operational}}$ = average nearest operational distance for worker modules
-- $d_{\mathrm{centroid\_separation}}$ = distance between worker and operational centroids
+- Worker facilities are `office` and `rest_area`.
+- Operational facilities are `core`, `storage`, and `crane`.
+- $\bar{d}_{\mathrm{nearest\ operational}}$ is the average nearest operational distance for worker modules.
+- $d_{\mathrm{centroid\ separation}}$ is the distance between worker and operational centroids.
 
-<p align="center">
-<img src="assets/bd2.png" alt="Behavioral descriptor 2" width="550">
-</p>
+Interpretation:
 
-| Value | Interpretation | Layout Pattern |
-|-------|----------------|----------------|
-| 0.0 - 0.3 | Highly embedded | Worker modules close to operational zones |
-| 0.3 - 0.5 | Moderately embedded | Worker modules adjacent to operations |
-| 0.5 - 0.7 | Moderately separated | Clear buffer between workers and operations |
-| 0.7 - 1.0 | Strongly segregated | Worker modules isolated from operational zones |
+| BD2 range | Layout pattern |
+|:---:|---|
+| 0.0 - 0.3 | Worker modules are highly embedded near operations |
+| 0.3 - 0.5 | Worker modules are moderately embedded near operations |
+| 0.5 - 0.7 | Worker modules have a clear buffer from operations |
+| 0.7 - 1.0 | Worker modules are strongly separated from operations |
 
 **Function**: `calculate_worker_operational_separation(facilities)`
 
-Compatibility alias: `calculate_functional_integration(facilities)`
+**Alias used by the algorithm**: `calculate_functional_integration(facilities)`
 
-## Learned Descriptor Mode
+---
 
-When learned descriptors are enabled, CEXO trains an autoencoder on generated layouts and uses the two-dimensional latent representation as the behavioral space. This allows the archive to adapt its categories to the layouts actually being generated, rather than relying only on manually selected descriptor formulas.
+<h2 id="autoencoder-learned-descriptors">👾 Autoencoder-Learned Descriptors</h2>
+
+The autoencoder extends CEXO beyond fixed hand-crafted behavioural descriptors. Instead of requiring all behavioural axes to be manually designed, CEXO can learn a compact two-dimensional representation from generated layouts.
+
+When learned descriptors are enabled, CEXO trains an autoencoder on encoded facility and entrance geometry. The learned latent coordinates are then normalised and used as the behavioural archive coordinates.
 
 The learned descriptor workflow is:
 
-1. Generate an unbiased training pool of layouts.
-2. Train the autoencoder on encoded facility and entrance geometry.
-3. Convert latent coordinates into two normalized descriptors in `[0, 1]`.
-4. Build and update the MAP-Elites archive using the learned descriptor coordinates.
+1. Generate an initial pool of layouts.
+2. Train the autoencoder on encoded layout geometry.
+3. Convert latent coordinates into two normalised descriptors in `[0,1]`.
+4. Insert layouts into the archive using learned descriptor coordinates.
+5. Continue optimisation with periodic autoencoder retraining.
 
-This preserves the same objective functions and genetic search process while changing how behavioral diversity is represented.
+The benefit of this approach is that the behavioural archive can adapt to the structure of the generated design space. Hand-crafted descriptors remain useful for interpretation, but learned descriptors can capture additional spatial variation that may not be expressed by the manually selected BD formulas.
+
+CEXO stores a bounded Pareto front in each occupied behavioural cell. A scalar ranking proxy is used when selecting representative layouts:
+
+$$
+F =
+0.5O_1 + 0.3O_2 + 0.2O_3
+$$
+
+Strictly feasible layouts receive an additional feasibility bonus. Infeasible layouts are penalised before archive ranking.
+
+---
+
+## 📊 Algorithm Summary
+
+| Method | Optimisation approach | Behavioural diversity | Output structure |
+|---|---|---|---|
+| CEXO | Multi-objective optimisation + quality diversity | Learned or hand-crafted descriptors | Behavioural grid of Pareto fronts |
+| MAP-Elites | Scalar fitness + quality diversity | Hand-crafted descriptors | Behavioural grid with one elite per cell |
+| NSGA-II | Multi-objective optimisation | None | Single global Pareto front |
+
+The intended comparison is:
+
+- **CEXO** balances objective trade-offs and behavioural diversity.
+- **MAP-Elites** explores diverse behavioural regions using a scalar fitness.
+- **NSGA-II** focuses on objective-space Pareto optimisation without behavioural archiving.
