@@ -26,7 +26,7 @@ This project presents CEXO, a hybrid optimization framework that integrates MAP-
 ```
 CEXO/
 ├── analysis/                        # Analysis scripts for reproducibility, sensitivity, scalability, and ablation study
-├── assets/                          # Medias used in the repository
+├── assets/                          # Media files used in the repository
 ├── core/                            # Python package with main modules to run the model
 ├── examples/                        # Practical Bulleen case study using the same CEXO method with different site setup parameters
 ├── .gitignore
