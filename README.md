@@ -47,6 +47,7 @@ That document covers:
 - Feasibility constraints: boundary, overlap, clearance, and practical site checks
 - Objective functions: safety, efficiency, and adaptability
 - Behavioral descriptors: diversity dimensions for archive organization
+- Autoencoder-learned descriptors: learned layout representations that extend beyond fixed hand-crafted behavioural descriptors
 
 ## 📥Installation
 
