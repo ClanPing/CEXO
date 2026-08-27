@@ -20,6 +20,8 @@ import os
 import sys
 import json
 import time
+import argparse
+from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -30,7 +32,7 @@ import seaborn as sns
 os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
 os.environ['PYTHONHASHSEED'] = '0'
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from core.config import (
     SiteConfig,
@@ -97,6 +99,19 @@ def count_distinct_layouts(individuals, tolerance=1e-4):
     return distinct_count
 
 
+def get_best_cell_representatives(archive):
+    """Return one best representative from each occupied behavioural cell."""
+    representatives = []
+    for coords in archive.archive:
+        if hasattr(archive, "get_best_for_cell"):
+            individual = archive.get_best_for_cell(coords)
+        else:
+            individual = archive.archive[coords]
+        if individual is not None:
+            representatives.append(individual)
+    return representatives
+
+
 def run_cexo_experiment(site_config, facility_types, mapelites_config, 
                         autoencoder_config, experiment_id):
     """Run CEXO (MAP-Elites with Autoencoder) experiment"""
@@ -120,24 +135,28 @@ def run_cexo_experiment(site_config, facility_types, mapelites_config,
     
     computation_time = time.time() - start_time
     
-    # Get all individuals
-    all_individuals = algorithm.archive.get_all_individuals()
-    feasible_individuals = [ind for ind in all_individuals if ind.feasible]
-    safe_individuals = [ind for ind in all_individuals if ind.objectives[0] >= 0.7]
+    # Report one best representative per occupied behavioural cell. The full
+    # CEXO archive still stores bounded Pareto fronts inside each occupied cell.
+    all_archive_individuals = algorithm.archive.get_all_individuals()
+    reported_individuals = get_best_cell_representatives(algorithm.archive)
+    feasible_individuals = [ind for ind in reported_individuals if ind.feasible]
+    safe_individuals = [ind for ind in reported_individuals if ind.objectives[0] >= 0.7]
     
     # Calculate metrics
-    objectives = np.array([ind.objectives for ind in all_individuals])
+    objectives = np.array([ind.objectives for ind in reported_individuals])
     
     stats = results.get('stats', algorithm.archive.get_stats())
     
     metrics = {
         'algorithm': 'CEXO',
-        'total_solutions': len(all_individuals),
+        'reported_solution_set': 'best_per_occupied_cell',
+        'total_solutions': len(reported_individuals),
+        'stored_pareto_solutions': len(all_archive_individuals),
         'feasible_solutions': len(feasible_individuals),
         'safe_solutions': len(safe_individuals),
         'coverage': stats.get('coverage', len(algorithm.archive.archive)),
         'coverage_pct': stats.get('coverage_pct', 100.0 * len(algorithm.archive.archive) / 400),
-        'distinct_layouts': count_distinct_layouts(all_individuals),
+        'distinct_layouts': count_distinct_layouts(reported_individuals),
         'avg_safety': float(np.mean(objectives[:, 0])),
         'avg_efficiency': float(np.mean(objectives[:, 1])),
         'avg_adaptability': float(np.mean(objectives[:, 2])),
@@ -152,6 +171,8 @@ def run_cexo_experiment(site_config, facility_types, mapelites_config,
     
     print("\n" + "-"*80)
     print("CEXO RESULTS:")
+    print(f"  Reported Solution Set: best representative per occupied cell")
+    print(f"  Stored Pareto Solutions: {metrics['stored_pareto_solutions']}")
     print(f"  Total Solutions: {metrics['total_solutions']}")
     print(f"  Feasible Solutions: {metrics['feasible_solutions']}")
     print(f"  Safe Solutions (>=0.7): {metrics['safe_solutions']}")
@@ -164,7 +185,7 @@ def run_cexo_experiment(site_config, facility_types, mapelites_config,
     print(f"  BD Mode: {metrics['bd_mode']}")
     print("-"*80)
     
-    return metrics, algorithm, all_individuals
+    return metrics, algorithm, reported_individuals
 
 
 def run_mapelites_experiment(site_config, facility_types, mapelites_config, 
@@ -489,11 +510,11 @@ def create_comparison_visualizations(all_results, output_dir):
     plt.savefig(os.path.join(output_dir, 'comparison_table.png'), dpi=300, bbox_inches='tight')
     plt.close()
     
-    print(f"\n✓ Visualizations saved to {output_dir}/")
+    print(f"\nVisualizations saved to {output_dir}/")
 
 
 def save_results(all_results, output_dir):
-    """Save comparison results to JSON and CSV"""
+    """Save comparison results to JSON, CSV, and README-ready Markdown."""
     
     os.makedirs(output_dir, exist_ok=True)
     
@@ -501,21 +522,98 @@ def save_results(all_results, output_dir):
     json_path = os.path.join(output_dir, 'comparison_results.json')
     with open(json_path, 'w') as f:
         json.dump(all_results, f, indent=2)
-    print(f"✓ Results saved to {json_path}")
+    print(f"Results saved to {json_path}")
     
     # Save CSV
     csv_path = os.path.join(output_dir, 'comparison_results.csv')
     df = pd.DataFrame(all_results)
     df.to_csv(csv_path, index=False)
-    print(f"✓ Results saved to {csv_path}")
+    print(f"Results saved to {csv_path}")
+
+    md_path = os.path.join(output_dir, 'comparison_results.md')
+    with open(md_path, 'w') as f:
+        f.write(render_markdown_comparison(all_results))
+    print(f"Results saved to {md_path}")
+
+
+def _format_feasible_ratio(result):
+    total = result['total_solutions']
+    feasible = result['feasible_solutions']
+    pct = 100.0 * feasible / total if total else 0.0
+    return f"{pct:.1f} ({feasible}/{total})"
+
+
+def _format_safe_ratio(result):
+    total = result['total_solutions']
+    safe = result.get('safe_solutions', 0)
+    pct = 100.0 * safe / total if total else 0.0
+    return f"{pct:.1f} ({safe}/{total})"
+
+
+def _format_coverage(result):
+    coverage_pct = result['coverage_pct']
+    if coverage_pct == 'N/A':
+        return 'N/A'
+    return f"{float(coverage_pct):.1f}"
+
+
+def render_markdown_comparison(all_results):
+    """Create a compact quantitative comparison table for README use."""
+    lines = [
+        "### Quantitative Comparison",
+        "",
+        "| Algorithm | Strict Feasible (%) | Safety >= 0.7 (%) | Behavioural Coverage (%) | Distinct Layouts | Avg Safety | Avg Efficiency | Avg Adaptability |",
+        "|:--|:--:|:--:|:--:|:--:|:--:|:--:|:--:|",
+    ]
+
+    for result in all_results:
+        lines.append(
+            "| {algorithm} | {feasible} | {safe} | {coverage} | {distinct} | {safety:.3f} | {efficiency:.3f} | {adaptability:.3f} |".format(
+                algorithm=result['algorithm'],
+                feasible=_format_feasible_ratio(result),
+                safe=_format_safe_ratio(result),
+                coverage=_format_coverage(result),
+                distinct=result['distinct_layouts'],
+                safety=result['avg_safety'],
+                efficiency=result['avg_efficiency'],
+                adaptability=result['avg_adaptability'],
+            )
+        )
+
+    lines.extend([
+        "",
+        "Notes:",
+        "- CEXO reports one best representative layout per occupied behavioural cell; the full archive stores additional Pareto alternatives inside each cell.",
+        "- Strict feasibility means no recorded boundary, overlap, crane-safety, or entrance-clearance violations.",
+        "- Safety >= 0.7 reports the looser safety-threshold metric used in several earlier result summaries.",
+        "- Behavioural coverage is reported for archive-based methods only.",
+        "- NSGA-II reports the final Pareto front and does not use a behavioural archive.",
+        "- Values are generated from the current run configuration and random seed.",
+        "",
+    ])
+
+    return "\n".join(lines)
 
 
 def main():
     """Main comparison experiment"""
+    parser = argparse.ArgumentParser(description="Compare CEXO, MAP-Elites, and NSGA-II.")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed for the shared comparison run.")
+    parser.add_argument("--facilities", type=int, default=6, help="Number of facilities in the shared comparison.")
+    parser.add_argument("--iterations", type=int, default=15000, help="CEXO/MAP-Elites optimisation iterations.")
+    parser.add_argument("--initial-pop", type=int, default=500, help="CEXO/MAP-Elites initial population.")
+    parser.add_argument("--nsga-population", type=int, default=100, help="NSGA-II population size.")
+    parser.add_argument("--nsga-generations", type=int, default=150, help="NSGA-II generations.")
+    parser.add_argument("--nsga-crossover", type=float, default=0.8, help="NSGA-II crossover probability.")
+    parser.add_argument("--nsga-mutation", type=float, default=0.1, help="NSGA-II mutation probability.")
+    parser.add_argument("--pretrain", type=int, default=5000, help="CEXO autoencoder pretraining iterations.")
+    parser.add_argument("--train-freq", type=int, default=2500, help="CEXO autoencoder retraining frequency.")
+    parser.add_argument("--output", type=str, default="results/algorithm_comparison", help="Output directory for comparison files.")
+    args = parser.parse_args()
     
     # Configuration
     experiment_id = "comparison_v1"
-    output_dir = "results/algorithm_comparison"
+    output_dir = args.output
     
     print("\n" + "="*80)
     print("ALGORITHM PERFORMANCE COMPARISON")
@@ -523,8 +621,8 @@ def main():
     print("="*80)
     
     # Common configuration
-    seed = 42
-    num_facilities = 6
+    seed = args.seed
+    num_facilities = args.facilities
     
     # Site configuration (shared)
     site_config = SiteConfig(
@@ -540,46 +638,50 @@ def main():
     
     # Algorithm-specific configurations
     # Make them comparable in terms of computational budget
-    total_evaluations = 15000  # Target similar number of evaluations
+    total_evaluations = args.iterations  # Target similar number of evaluations
     
     # MAP-Elites configuration
     mapelites_config = MapElitesConfig(
         grid_size=(20, 20),  # 400 cells
-        iterations=15000,
-        initial_population=500
+        iterations=args.iterations,
+        initial_population=args.initial_pop
     )
     
     # Autoencoder configuration for CEXO
     autoencoder_config = AutoencoderConfig(
         use_learned_descriptors=True,
-        pretrain_iterations=5000,  # Switch to learned BDs after 5000 iterations
+        pretrain_iterations=args.pretrain,
         latent_dim=2,
         encoder_hidden=[128, 64, 32],
         decoder_hidden=[32, 64, 128],
         learning_rate=0.001,
         training_epochs=50,
         batch_size=32,
-        training_frequency=2500,  # Retrain every 2500 iterations
-        min_samples_for_training=200,
+        training_frequency=args.train_freq,
+        min_samples_for_training=min(200, args.initial_pop),
         seed=seed
     )
     
     # NSGA-II configuration
     nsga2_config = NSGA2Config(
-        population_size=100,
-        generations=150,  # 100 * 150 = 15,000 evaluations
-        crossover_rate=0.9,
-        mutation_rate=0.3
+        population_size=args.nsga_population,
+        generations=args.nsga_generations,
+        crossover_rate=args.nsga_crossover,
+        mutation_rate=args.nsga_mutation
     )
     
     print("\nConfiguration:")
     print(f"  Seed: {seed}")
     print(f"  Facilities: {num_facilities}")
-    print(f"  Target Evaluations: ~{total_evaluations}")
-    print(f"  MAP-Elites: {mapelites_config.grid_size[0]}×{mapelites_config.grid_size[1]} grid, "
+    print(f"  Approximate Evaluation Budget: ~{total_evaluations}")
+    print(f"  MAP-Elites: {mapelites_config.grid_size[0]}x{mapelites_config.grid_size[1]} grid, "
           f"{mapelites_config.iterations} iterations, {mapelites_config.initial_population} initial pop")
     print(f"  CEXO: Same as MAP-Elites + Autoencoder (switch at iteration {autoencoder_config.pretrain_iterations})")
-    print(f"  NSGA-II: {nsga2_config.population_size} population, {nsga2_config.generations} generations")
+    print(
+        f"  NSGA-II: {nsga2_config.population_size} population, "
+        f"{nsga2_config.generations} generations, crossover {nsga2_config.crossover_rate}, "
+        f"mutation {nsga2_config.mutation_rate}"
+    )
     
     # Run experiments
     all_results = []
@@ -592,7 +694,7 @@ def main():
         )
         all_results.append(cexo_metrics)
     except Exception as e:
-        print(f"\n✗ CEXO failed: {e}")
+        print(f"\nCEXO failed: {e}")
         import traceback
         traceback.print_exc()
     
@@ -603,7 +705,7 @@ def main():
         )
         all_results.append(mapelites_metrics)
     except Exception as e:
-        print(f"\n✗ MAP-Elites failed: {e}")
+        print(f"\nMAP-Elites failed: {e}")
         import traceback
         traceback.print_exc()
     
@@ -614,7 +716,7 @@ def main():
         )
         all_results.append(nsga2_metrics)
     except Exception as e:
-        print(f"\n✗ NSGA-II failed: {e}")
+        print(f"\nNSGA-II failed: {e}")
         import traceback
         traceback.print_exc()
     
@@ -643,10 +745,10 @@ def main():
             print(f"  Time: {r['computation_time']:.2f}s")
         
         print("\n" + "="*80)
-        print(f"✓ Comparison complete! Results saved to {output_dir}/")
+        print(f"Comparison complete! Results saved to {output_dir}/")
         print("="*80)
     else:
-        print("\n✗ No results to compare")
+        print("\nNo results to compare")
 
 
 if __name__ == "__main__":

@@ -18,6 +18,7 @@ import os
 import shutil
 import subprocess
 import sys
+import textwrap
 from datetime import datetime
 from pathlib import Path
 
@@ -34,6 +35,10 @@ from scripts.generate_2d_previews import draw_layout
 PROJECT_DIR = Path(__file__).resolve().parent
 SCRIPTS_DIR = PROJECT_DIR / "scripts"
 DEFAULT_OUTPUT = PROJECT_DIR / "results" / f"cexo_bulleen_pipeline_{datetime.now():%Y%m%d_%H%M%S}"
+VISUAL_LIMIT = 3
+DIVERSE_LIMIT = 9
+PREVIEW_DPI = 110
+CAMERA = "low"
 
 
 def resolve_results_dir(path: Path) -> Path:
@@ -148,8 +153,6 @@ def generate_styled_main_layouts(results_dir: Path, best_layout_id: str, diverse
 def run_optimizer(args: argparse.Namespace, results_dir: Path) -> None:
     command = [
         sys.executable,
-        "-X",
-        "utf8",
         "main.py",
         "--practical-bulleen",
         "--bulleen-boundary",
@@ -174,26 +177,35 @@ def run_optimizer(args: argparse.Namespace, results_dir: Path) -> None:
         "--output",
         str(results_dir),
     ]
+    if args.export_count is not None:
+        command.extend(["--export-count", str(args.export_count)])
+    if args.export_all:
+        command.append("--export-all")
+    if args.no_export_pngs:
+        command.append("--no-export-pngs")
+    if args.export_unsafe:
+        command.append("--export-unsafe")
     run_command(command)
 
 
 def run_visual_pipeline(args: argparse.Namespace, results_dir: Path) -> None:
     run_command([sys.executable, str(SCRIPTS_DIR / "analyse_cexo_results.py"), "--results-dir", str(results_dir)])
 
-    if not args.skip_case_figure:
-        run_command([sys.executable, str(SCRIPTS_DIR / "generate_academic_case_results_figure.py"), "--results-dir", str(results_dir)])
+    run_command([sys.executable, str(SCRIPTS_DIR / "generate_academic_case_results_figure.py"), "--results-dir", str(results_dir)])
 
-    if not args.skip_gallery:
-        gallery_command = [sys.executable, str(SCRIPTS_DIR / "generate_layout_gallery_figure.py"), "--results-dir", str(results_dir)]
-        if args.plain_gallery:
-            gallery_command.append("--plain")
-        run_command(gallery_command)
+    run_command([
+        sys.executable,
+        str(SCRIPTS_DIR / "generate_layout_gallery_figure.py"),
+        "--results-dir",
+        str(results_dir),
+        "--plain",
+    ])
 
-    layout_ids = selected_layout_ids(results_dir, args.visual_limit)
-    generate_selected_2d_previews(results_dir, layout_ids, dpi=args.preview_dpi)
-    diverse_ids = showcase_layout_ids(results_dir, args.diverse_limit)
+    layout_ids = selected_layout_ids(results_dir, VISUAL_LIMIT)
+    generate_selected_2d_previews(results_dir, layout_ids, dpi=PREVIEW_DPI)
+    diverse_ids = showcase_layout_ids(results_dir, DIVERSE_LIMIT)
     best_id = selected_layout_ids(results_dir, 1)[0]
-    generate_styled_main_layouts(results_dir, best_id, diverse_ids, dpi=args.preview_dpi)
+    generate_styled_main_layouts(results_dir, best_id, diverse_ids, dpi=PREVIEW_DPI)
 
     run_command(
         [
@@ -202,9 +214,9 @@ def run_visual_pipeline(args: argparse.Namespace, results_dir: Path) -> None:
             "--results-dir",
             str(results_dir),
             "--limit",
-            str(args.visual_limit),
+            str(VISUAL_LIMIT),
             "--camera",
-            args.camera,
+            CAMERA,
         ]
     )
     run_command(
@@ -214,30 +226,125 @@ def run_visual_pipeline(args: argparse.Namespace, results_dir: Path) -> None:
             "--results-dir",
             str(results_dir),
             "--limit",
-            str(args.visual_limit),
+            str(VISUAL_LIMIT),
         ]
     )
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT, help="Fresh results directory.")
-    parser.add_argument("--skip-optimizer", action="store_true", help="Only regenerate visual outputs for an existing results directory.")
-    parser.add_argument("--iterations", type=int, default=15000)
-    parser.add_argument("--initial-pop", type=int, default=500)
-    parser.add_argument("--pretrain", type=int, default=0)
-    parser.add_argument("--train-freq", type=int, default=1000)
-    parser.add_argument("--latent-dim", type=int, default=2)
-    parser.add_argument("--site-width-m", type=float, default=300.0)
-    parser.add_argument("--site-length-m", type=float, default=250.0)
-    parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--visual-limit", type=int, default=3)
-    parser.add_argument("--diverse-limit", type=int, default=9)
-    parser.add_argument("--preview-dpi", type=int, default=110)
-    parser.add_argument("--camera", choices=["reset", "low", "top"], default="low")
-    parser.add_argument("--skip-case-figure", action="store_true")
-    parser.add_argument("--skip-gallery", action="store_true")
-    parser.add_argument("--plain-gallery", action="store_true", default=True)
+    parser = argparse.ArgumentParser(
+        description=textwrap.dedent(
+            """\
+            Run the Bulleen CEXO case-study pipeline.
+
+            The pipeline runs the Bulleen-specific CEXO optimiser, then prepares the
+            case-study visual outputs from the exported layout JSON files.
+            """
+        ),
+        epilog=textwrap.dedent(
+            """\
+            Examples:
+              python run_bulleen_cexo_pipeline.py
+              python run_bulleen_cexo_pipeline.py --output results\\cexo_bulleen_quick_review --iterations 1000 --initial-pop 100 --export-count 50
+              python run_bulleen_cexo_pipeline.py --skip-optimizer --output results\\cexo_bulleen_15000_full_fg
+            """
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
+    general = parser.add_argument_group("general")
+    general.add_argument(
+        "--output",
+        type=Path,
+        default=DEFAULT_OUTPUT,
+        metavar="DIR",
+        help="Output folder for the Bulleen run. Defaults to a timestamped folder under results/.",
+    )
+    general.add_argument(
+        "--skip-optimizer",
+        action="store_true",
+        help="Skip the long optimisation step and regenerate figures from an existing --output folder.",
+    )
+
+    optimisation = parser.add_argument_group("optimisation")
+    optimisation.add_argument(
+        "--iterations",
+        type=int,
+        default=15000,
+        metavar="N",
+        help="Number of CEXO optimisation iterations. Lower this for quick review runs.",
+    )
+    optimisation.add_argument(
+        "--initial-pop",
+        type=int,
+        default=500,
+        metavar="N",
+        help="Number of initial layouts used to seed the behavioural archive.",
+    )
+    optimisation.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        metavar="N",
+        help="Random seed used for reproducible Bulleen optimisation runs.",
+    )
+
+    export = parser.add_argument_group("layout export")
+    export.add_argument(
+        "--export-count",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Export only the top N layout JSON/PNG pairs. Omit this to export all safety-threshold layouts.",
+    )
+    export.add_argument("--export-all", action="store_true", help=argparse.SUPPRESS)
+    export.add_argument(
+        "--no-export-pngs",
+        action="store_true",
+        help="Export layout JSON files only, without matching individual PNG previews.",
+    )
+    export.add_argument(
+        "--export-unsafe",
+        action="store_true",
+        help="Also export layouts below the safety threshold. Default export keeps safety-threshold layouts only.",
+    )
+
+    advanced = parser.add_argument_group("advanced")
+    advanced.add_argument(
+        "--pretrain",
+        type=int,
+        default=0,
+        metavar="N",
+        help="Iterations before the first autoencoder descriptor training step.",
+    )
+    advanced.add_argument(
+        "--train-freq",
+        type=int,
+        default=1000,
+        metavar="N",
+        help="Autoencoder retraining interval during optimisation.",
+    )
+    advanced.add_argument(
+        "--latent-dim",
+        type=int,
+        default=2,
+        metavar="N",
+        help="Latent dimension used for learned behavioural descriptors.",
+    )
+    advanced.add_argument(
+        "--site-width-m",
+        type=float,
+        default=300.0,
+        metavar="M",
+        help="Bulleen site width used when exporting scaled layout JSON and 3D visuals.",
+    )
+    advanced.add_argument(
+        "--site-length-m",
+        type=float,
+        default=250.0,
+        metavar="M",
+        help="Bulleen site length used when exporting scaled layout JSON and 3D visuals.",
+    )
     return parser.parse_args()
 
 

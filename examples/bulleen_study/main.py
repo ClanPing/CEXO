@@ -218,7 +218,10 @@ def run_mapelites_with_learned_bds(
     use_bulleen_entrances: bool = False,
     site_width_m: float = 100.0,
     site_length_m: float = 100.0,
-    export_all_layouts: bool = True
+    export_count: int = None,
+    export_all_layouts: bool = True,
+    export_pngs: bool = True,
+    export_unsafe: bool = False,
 ):
     """
     Run MAP-Elites with autoencoder-based behavioral descriptor learning.
@@ -235,6 +238,10 @@ def run_mapelites_with_learned_bds(
         save_model: Whether to save trained models
         output_dir: Directory for results
         seed: Random seed for reproducibility
+        export_count: Number of ranked layouts to export when export_all_layouts is False
+        export_all_layouts: Export every candidate layout from the final archive
+        export_pngs: Save a PNG preview beside each exported layout JSON
+        export_unsafe: Include layouts below the safety threshold in the export set
     """
     from core.layout_autoencoder import set_random_seeds
     
@@ -444,25 +451,32 @@ def run_mapelites_with_learned_bds(
                 "bd1": float(best.behaviors[0]),
                 "bd2": float(best.behaviors[1])
             },
-            "feasible": bool(best.feasible)
+                "feasible": bool(best.feasible)
         }
+
+    max_export_layouts = None if export_all_layouts else export_count
+    exported_layouts = export_cslpelite_results(
+        results["archive"],
+        site_config,
+        output_dir,
+        max_layouts=max_export_layouts,
+        include_unsafe=export_unsafe,
+        site_width_m=site_width_m,
+        site_length_m=site_length_m,
+        coordinate_space="normalized",
+        export_pngs=export_pngs
+    )
+    results_json["exported_layouts"] = {
+        "count": int(exported_layouts),
+        "pngs": bool(export_pngs),
+        "all_archive_layouts": bool(export_all_layouts),
+        "include_unsafe": bool(export_unsafe)
+    }
     
     json_path = os.path.join(output_dir, "results.json")
     with open(json_path, 'w') as f:
         json.dump(results_json, f, indent=2)
     print(f"  Saved results JSON: {json_path}")
-
-    # Export individual layouts for Streamlit 3D viewer
-    export_cslpelite_results(
-        results["archive"],
-        site_config,
-        output_dir,
-        max_layouts=0 if export_all_layouts else 30,
-        include_unsafe=export_all_layouts,
-        site_width_m=site_width_m,
-        site_length_m=site_length_m,
-        coordinate_space="normalized"
-    )
     
     print(f"\nAll results saved to: {output_dir}/")
     
@@ -845,6 +859,10 @@ if __name__ == "__main__":
     parser.add_argument('--site-width-m', type=float, default=100.0, help='Site width in meters for export scaling')
     parser.add_argument('--site-length-m', type=float, default=100.0, help='Site length in meters for export scaling')
     parser.add_argument('--seed', type=int, default=42, help='Random seed for reproducibility')
+    parser.add_argument('--export-count', type=int, default=None, help='Number of ranked layout JSON/PNG pairs to export; omit for all safety-threshold layouts')
+    parser.add_argument('--export-all', action='store_true', help='Export every safety-threshold layout from the final archive')
+    parser.add_argument('--no-export-pngs', action='store_true', help='Export layout JSON files only')
+    parser.add_argument('--export-unsafe', action='store_true', help='Include layouts below the safety threshold in exported layouts')
     
     args = parser.parse_args()
     
@@ -880,5 +898,9 @@ if __name__ == "__main__":
             site_length_m=args.site_length_m,
             use_bulleen_boundary=args.bulleen_boundary or args.practical_bulleen or args.sample_bulleen or args.bulleen_roads or args.bulleen_entrances,
             use_bulleen_roads=args.bulleen_roads,
-            use_bulleen_entrances=args.bulleen_entrances or args.practical_bulleen or args.sample_bulleen
+            use_bulleen_entrances=args.bulleen_entrances or args.practical_bulleen or args.sample_bulleen,
+            export_count=args.export_count,
+            export_all_layouts=args.export_all or args.export_count is None,
+            export_pngs=not args.no_export_pngs,
+            export_unsafe=args.export_unsafe
         )

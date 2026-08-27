@@ -5,8 +5,14 @@ Baseline: 6 facilities, 98.83% coverage (from Table 7)
 """
 
 import os
+import sys
 import json
+import argparse
+from pathlib import Path
 import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 from core.config import SiteConfig, MapElitesConfig, AutoencoderConfig
 from core.mapelites_with_autoencoder import MapElitesWithAutoencoder
 
@@ -14,12 +20,12 @@ from core.mapelites_with_autoencoder import MapElitesWithAutoencoder
 os.makedirs("results/sensitivity_analysis", exist_ok=True)
 
 # Baseline configuration (6 facilities, from Table 7)
-def get_baseline_config():
+def get_baseline_config(seed=42):
     site_config = SiteConfig()
     site_config.facility_count = 6
     site_config.boundary_margin = 0.08
     site_config.pareto_size = 12
-    site_config.seed = 42
+    site_config.seed = seed
     site_config.crane_safety_distance = 0.30
     site_config.entrance_clearance = 0.15
     site_config.min_entrances = 1
@@ -124,13 +130,17 @@ baseline_values = {
 }
 
 def main():
+    parser = argparse.ArgumentParser(description="Run CEXO sensitivity analysis.")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed for baseline and parameter sweeps.")
+    args = parser.parse_args()
+
     all_results = []
     
     # First, run baseline
     print("\n" + "="*70)
     print("RUNNING BASELINE CONFIGURATION")
     print("="*70)
-    site_config, mapelites_config, autoencoder_config = get_baseline_config()
+    site_config, mapelites_config, autoencoder_config = get_baseline_config(seed=args.seed)
     baseline_result = run_single_experiment(site_config, mapelites_config, autoencoder_config, 'baseline', 'baseline')
     all_results.append(baseline_result)
     
@@ -150,7 +160,7 @@ def main():
                 continue
             
             # Create config with modified parameter
-            site_config, mapelites_config, autoencoder_config = get_baseline_config()
+            site_config, mapelites_config, autoencoder_config = get_baseline_config(seed=args.seed)
             
             # Apply parameter change
             if param_name == 'boundary_margin':

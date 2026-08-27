@@ -12,6 +12,8 @@ import os
 import sys
 import json
 import time
+import argparse
+from pathlib import Path
 import numpy as np
 import pandas as pd
 from scipy import stats
@@ -20,7 +22,7 @@ from scipy import stats
 os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
 os.environ['PYTHONHASHSEED'] = '0'
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from core.config import (
     SiteConfig,
@@ -217,6 +219,9 @@ def format_table_row(metric_name, stats):
 
 def main():
     """Main reproducibility analysis"""
+    parser = argparse.ArgumentParser(description="Run CEXO reproducibility analysis.")
+    parser.add_argument("--seed", type=int, default=42, help="Base seed; trials use seed+1 through seed+num_trials.")
+    args = parser.parse_args()
     
     print("\n" + "="*80)
     print("CEXO REPRODUCIBILITY ANALYSIS")
@@ -225,7 +230,7 @@ def main():
     
     # Configuration
     num_trials = 30
-    base_seed = 42
+    base_seed = args.seed
     num_facilities = 6
     output_dir = "results/reproducibility_analysis"
     os.makedirs(output_dir, exist_ok=True)
@@ -236,6 +241,7 @@ def main():
     
     print(f"\nConfiguration:")
     print(f"  Trials: {num_trials}")
+    print(f"  Base seed: {base_seed}")
     print(f"  Grid: 20×20 (400 cells)")
     print(f"  Iterations: 15,000")
     print(f"  Initial population: 500")

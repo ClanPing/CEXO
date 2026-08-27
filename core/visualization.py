@@ -93,7 +93,7 @@ def visualize_layout(ax, individual: Individual, config: SiteConfig, title: str 
     # Enhanced title
     safety, efficiency, adaptability = objectives
     
-    status = "✓ SAFE" if individual.feasible else "✗ UNSAFE"
+    status = "SAFE" if individual.feasible else "UNSAFE"
     obj_text = f"S: {safety:.3f}, E: {efficiency:.3f}, A: {adaptability:.3f}"
     
     if behaviors is not None:
@@ -580,24 +580,44 @@ def create_pure_mapelites_grid_plot(ax, archive):
 # RESULTS EXPORT FUNCTIONS
 # =============================================================================
 
-def export_cslpelite_results(archive, config: SiteConfig, output_dir: str, max_layouts: int = 30) -> int:
-    """Export CSLP Elite (MAP-Elites + NSGA-II) results to JSON"""
+def export_cslpelite_results(
+    archive,
+    config: SiteConfig,
+    output_dir: str,
+    max_layouts: Optional[int] = 30,
+    site_width_m: float = 100.0,
+    site_length_m: float = 100.0,
+    export_pngs: bool = True,
+    safe_only: bool = True,
+) -> int:
+    """Export CEXO archive layouts to Streamlit-compatible JSON and optional PNG.
+
+    When safe_only is True, only strictly feasible layouts with no recorded
+    violations are exported. Use safe_only=False to export the full archive.
+    """
     print(f"Exporting CSLP Elite (MAP-Elites + NSGA-II) results to {output_dir}/...")
     os.makedirs(output_dir, exist_ok=True)
     
     all_individuals = archive.get_all_individuals()
-    safety_feasible = [ind for ind in all_individuals if ind.objectives[0] >= 0.7]
+    strict_feasible = [ind for ind in all_individuals if ind.feasible]
     
-    # Sort by weighted combination
-    safety_feasible.sort(
+    export_candidates = strict_feasible if safe_only else all_individuals
+
+    # Sort by weighted combination.
+    export_candidates.sort(
         key=lambda x: (0.4 * x.objectives[0] + 0.3 * x.objectives[1] + 0.3 * x.objectives[2]), 
         reverse=True
     )
+
+    if max_layouts is not None:
+        export_candidates = export_candidates[:max_layouts]
     
     exported = 0
-    for i, individual in enumerate(safety_feasible[:max_layouts]):
+    for i, individual in enumerate(export_candidates):
         layout_data = {
             "id": f"cslpelite_layout_{i:03d}",
+            "site_width_m": float(site_width_m),
+            "site_length_m": float(site_length_m),
             "objectives": {
                 "safety_compliance": float(individual.objectives[0]),
                 "operational_efficiency": float(individual.objectives[1]),
@@ -617,6 +637,8 @@ def export_cslpelite_results(archive, config: SiteConfig, output_dir: str, max_l
                     "type": f["type"],
                     "x": float(f["center"][0]),
                     "y": float(f["center"][1]),
+                    "width": float(FACILITY_SPECS[f["type"]]["w"]),
+                    "length": float(FACILITY_SPECS[f["type"]]["d"]),
                     "category": FACILITY_SPECS[f["type"]]["category"]
                 }
                 for f in individual.solution
@@ -630,6 +652,20 @@ def export_cslpelite_results(archive, config: SiteConfig, output_dir: str, max_l
         filepath = os.path.join(output_dir, f"cslpelite_layout_{i:03d}.json")
         with open(filepath, 'w') as f:
             json.dump(layout_data, f, indent=2)
+
+        if export_pngs:
+            fig = visualize_layout_preview(
+                individual.solution,
+                individual.entrances,
+                title=(
+                    f"Layout {i + 1} | Safety: {individual.objectives[0]:.3f} | "
+                    f"Eff: {individual.objectives[1]:.3f} | Adapt: {individual.objectives[2]:.3f}"
+                ),
+            )
+            png_filepath = os.path.join(output_dir, f"cslpelite_layout_{i:03d}.png")
+            fig.savefig(png_filepath, dpi=150, bbox_inches='tight')
+            plt.close(fig)
+
         exported += 1
     
     # Create summary
@@ -651,7 +687,8 @@ def export_cslpelite_results(archive, config: SiteConfig, output_dir: str, max_l
             "coverage": stats['coverage'],
             "coverage_percentage": stats['coverage_pct'],
             "total_individuals": stats['total_individuals'],
-            "safety_feasible": stats['safety_feasible_count']
+            "safety_threshold_feasible": stats['safety_feasible_count'],
+            "strict_feasible": stats.get('strict_feasible_count', sum(1 for ind in all_individuals if ind.feasible))
         },
         "objective_averages": {
             "safety": stats['avg_safety'],
@@ -666,7 +703,14 @@ def export_cslpelite_results(archive, config: SiteConfig, output_dir: str, max_l
     print(f"  Exported {exported} layouts and summary")
     return exported
 
-def export_nsga2_results(results: Dict, config: SiteConfig, output_dir: str, max_layouts: int = 30) -> int:
+def export_nsga2_results(
+    results: Dict,
+    config: SiteConfig,
+    output_dir: str,
+    max_layouts: Optional[int] = 30,
+    export_pngs: bool = False,
+    feasible_only: bool = True,
+) -> int:
     """Export NSGA-II results to JSON"""
     print(f"Exporting NSGA-II results to {output_dir}/...")
     os.makedirs(output_dir, exist_ok=True)
@@ -674,11 +718,16 @@ def export_nsga2_results(results: Dict, config: SiteConfig, output_dir: str, max
     pareto_front = results["pareto_front"]
     population = results["population"]
     
-    # Sort Pareto front by combined score
+    # Sort Pareto front by combined score. Visual exports default to strict
+    # feasible layouts so previews do not showcase overlap-heavy solutions.
     pareto_front.sort(key=lambda x: sum(x.objectives), reverse=True)
+    export_candidates = [ind for ind in pareto_front if ind.feasible] if feasible_only else pareto_front
+    if feasible_only and not export_candidates:
+        print("  Warning: no feasible Pareto layouts found; exporting best Pareto layouts instead.")
+        export_candidates = pareto_front
     
     exported = 0
-    for i, individual in enumerate(pareto_front[:max_layouts]):
+    for i, individual in enumerate(export_candidates[:max_layouts]):
         layout_data = {
             "id": f"nsga2_layout_{i:03d}",
             "rank": "pareto_optimal",
@@ -710,6 +759,20 @@ def export_nsga2_results(results: Dict, config: SiteConfig, output_dir: str, max
         filepath = os.path.join(output_dir, f"nsga2_layout_{i:03d}.json")
         with open(filepath, 'w') as f:
             json.dump(layout_data, f, indent=2)
+
+        if export_pngs:
+            fig = visualize_layout_preview(
+                individual.solution,
+                individual.entrances,
+                title=(
+                    f"NSGA-II Layout {i + 1} | Safety: {individual.objectives[0]:.3f} | "
+                    f"Eff: {individual.objectives[1]:.3f} | Adapt: {individual.objectives[2]:.3f}"
+                ),
+            )
+            png_filepath = os.path.join(output_dir, f"nsga2_layout_{i:03d}.png")
+            fig.savefig(png_filepath, dpi=150, bbox_inches='tight')
+            plt.close(fig)
+
         exported += 1
     
     # Create summary
@@ -725,6 +788,7 @@ def export_nsga2_results(results: Dict, config: SiteConfig, output_dir: str, max
             "layout_adaptability": "Expansion + redundancy + reconfiguration potential"
         },
         "total_exported": exported,
+        "export_feasible_only": feasible_only,
         "nsga2_performance": {
             "population_size": len(population),
             "pareto_front_size": len(pareto_front),
@@ -755,7 +819,13 @@ def export_nsga2_results(results: Dict, config: SiteConfig, output_dir: str, max
     print(f"  Exported {exported} Pareto-optimal layouts and summary")
     return exported
 
-def export_mapelites_results(archive, config: SiteConfig, output_dir: str, max_layouts: int = 30) -> int:
+def export_mapelites_results(
+    archive,
+    config: SiteConfig,
+    output_dir: str,
+    max_layouts: Optional[int] = 30,
+    export_pngs: bool = False,
+) -> int:
     """Export Pure MAP-Elites results to JSON"""
     print(f"Exporting Pure MAP-Elites results to {output_dir}/...")
     os.makedirs(output_dir, exist_ok=True)
@@ -811,6 +881,20 @@ def export_mapelites_results(archive, config: SiteConfig, output_dir: str, max_l
         filepath = os.path.join(output_dir, f"mapelites_layout_{i:03d}.json")
         with open(filepath, 'w') as f:
             json.dump(layout_data, f, indent=2)
+
+        if export_pngs:
+            fig = visualize_layout_preview(
+                individual.solution,
+                individual.entrances,
+                title=(
+                    f"MAP-Elites Layout {i + 1} | Safety: {individual.objectives[0]:.3f} | "
+                    f"Eff: {individual.objectives[1]:.3f} | Adapt: {individual.objectives[2]:.3f}"
+                ),
+            )
+            png_filepath = os.path.join(output_dir, f"mapelites_layout_{i:03d}.png")
+            fig.savefig(png_filepath, dpi=150, bbox_inches='tight')
+            plt.close(fig)
+
         exported += 1
     
     # Create summary
@@ -929,8 +1013,8 @@ def visualize_mapelites_archive_heatmap(archive, title: str = "MAP-Elites Archiv
     return fig
 
 
-def visualize_layout(facilities: List[Dict], entrances: List, 
-                     title: str = "Construction Site Layout"):
+def visualize_layout_preview(facilities: List[Dict], entrances: List,
+                             title: str = "Construction Site Layout"):
     """
     Standalone layout visualization (simplified version for autoencoder script).
     

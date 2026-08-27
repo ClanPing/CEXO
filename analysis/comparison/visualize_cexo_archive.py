@@ -10,6 +10,7 @@ Creates heatmaps showing fitness distribution across the learned behavioral spac
 import os
 import sys
 import json
+from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
@@ -18,7 +19,7 @@ import seaborn as sns
 os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
 os.environ['PYTHONHASHSEED'] = '0'
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from core.config import (
     SiteConfig,

@@ -151,6 +151,7 @@ class CEXOArchive:
                 "coverage_pct": 0.0,
                 "total_individuals": 0,
                 "safety_feasible_count": 0,
+                "strict_feasible_count": 0,
                 "avg_safety": 0.0,
                 "avg_efficiency": 0.0,
                 "avg_adaptability": 0.0,
@@ -163,6 +164,7 @@ class CEXOArchive:
         objectives_array = np.array([ind.objectives for ind in all_individuals])
         scalar_fitnesses = [self.calculate_scalar_fitness(ind) for ind in all_individuals]
         safety_feasible = [ind for ind in all_individuals if ind.objectives[0] >= 0.7]
+        strict_feasible = [ind for ind in all_individuals if ind.feasible]
         pareto_sizes = [front.size() for front in self.archive.values()]
 
         return {
@@ -170,6 +172,7 @@ class CEXOArchive:
             "coverage_pct": 100.0 * len(self.archive) / self.total_cells,
             "total_individuals": len(all_individuals),
             "safety_feasible_count": len(safety_feasible),
+            "strict_feasible_count": len(strict_feasible),
             "avg_safety": float(np.mean(objectives_array[:, 0])),
             "avg_efficiency": float(np.mean(objectives_array[:, 1])),
             "avg_adaptability": float(np.mean(objectives_array[:, 2])),

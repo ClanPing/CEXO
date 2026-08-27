@@ -18,6 +18,7 @@ from .layout_generation import (
     create_random_layout,
     mutate_layout,
     crossover_layouts,
+    repair_layout_constraints,
 )
 
 # =============================================================================
@@ -115,14 +116,28 @@ class PureNSGA2Optimizer:
     """Pure NSGA-II optimizer for construction site layout optimization"""
     
     def __init__(self, site_config: SiteConfig, facility_types: List[str], 
-                 nsga2_config: NSGA2Config = None):
+                 nsga2_config: NSGA2Config = None,
+                 repair_layouts: bool = True):
         self.site_config = site_config
         self.facility_types = facility_types
         self.nsga2_config = nsga2_config or NSGA2Config()
+        self.repair_layouts = repair_layouts
         self.evaluations = 0
         
         random.seed(site_config.seed)
         np.random.seed(site_config.seed)
+
+    def repair_solution(self, solution: List[Dict], 
+                        entrances: List[Tuple[float, float]]) -> List[Dict]:
+        """Apply the shared constraint repair step when enabled."""
+        if not self.repair_layouts:
+            return solution
+        return repair_layout_constraints(
+            solution,
+            self.site_config.boundary_margin,
+            entrances,
+            self.site_config,
+        )
     
     def evaluate_solution(self, solution: List[Dict], 
                          entrances: List[Tuple[float, float]]) -> Individual:
@@ -148,6 +163,7 @@ class PureNSGA2Optimizer:
         for i in range(population_size):
             entrances = generate_random_entrances(self.site_config, seed=self.site_config.seed + i)
             solution = create_random_layout(self.facility_types, self.site_config.boundary_margin)
+            solution = self.repair_solution(solution, entrances)
             individual = self.evaluate_solution(solution, entrances)
             population.append(individual)
             
@@ -191,7 +207,8 @@ class PureNSGA2Optimizer:
                 else:
                     child_entrances = parent.entrances[:]
             
-            # Evaluate offspring
+            # Repair and evaluate offspring
+            child_solution = self.repair_solution(child_solution, child_entrances)
             child = self.evaluate_solution(child_solution, child_entrances)
             offspring.append(child)
         
@@ -239,6 +256,7 @@ class PureNSGA2Optimizer:
         print(f"Population: {population_size}")
         print(f"Generations: {generations}")
         print(f"Objectives: Safety, Efficiency, Adaptability")
+        print(f"Constraint repair: {'enabled' if self.repair_layouts else 'disabled'}")
         
         import time
         start_time = time.time()

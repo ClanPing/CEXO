@@ -14,6 +14,7 @@ import sys
 import json
 import time
 import psutil
+from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime
@@ -21,6 +22,8 @@ from datetime import datetime
 # Set environment variables before torch import
 os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
 os.environ['PYTHONHASHSEED'] = '0'
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from core.config import (
     SiteConfig,

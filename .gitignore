@@ -36,10 +36,13 @@ venv.bak/
 
 # Output directories
 output/
+results/
 cslpelite_output/
 pure_mapelites_output/
 mapelites_output/
 nsga2_output/
+examples/bulleen_study/results/
+examples/bulleen_study/**/autoencoder_model_iter*.pt
 
 # Streamlit apps are published in a separate repository
 streamlit_app/

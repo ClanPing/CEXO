@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Export 3D screenshots using the Streamlit Bulleen Three.js viewer.
+"""Export 3D screenshots using the Bulleen Three.js viewer.
 
-This script reuses ``streamlit_bulleen/app_interface/layout_viewer_3d.html`` so
-the screenshots match the interactive viewer rather than a simplified Matplotlib
-approximation.
+This script reuses the local case-study viewer template so screenshots match
+the interactive Streamlit viewer style without requiring the Streamlit app
+folder in the main CEXO repository.
 """
 
 from __future__ import annotations
@@ -18,8 +18,7 @@ from pathlib import Path
 
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
-REPO_ROOT = PROJECT_DIR.parent
-VIEWER_TEMPLATE = REPO_ROOT / "streamlit_bulleen" / "app_interface" / "layout_viewer_3d.html"
+VIEWER_TEMPLATE = PROJECT_DIR / "templates" / "layout_viewer_3d.html"
 DEFAULT_RESULTS_DIR = PROJECT_DIR / "results" / "cexo_bulleen_15000_full_fg"
 THREE_VENDOR = PROJECT_DIR / "vendor" / "three"
 

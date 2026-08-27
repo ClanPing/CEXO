@@ -16,6 +16,7 @@ Process:
 
 import os
 import sys
+from datetime import datetime
 
 # Set CUDA environment variables for reproducibility BEFORE importing torch
 os.environ['CUBLAS_WORKSPACE_CONFIG'] = ':4096:8'
@@ -24,6 +25,7 @@ os.environ['PYTHONHASHSEED'] = '0'
 import json
 import matplotlib.pyplot as plt
 import numpy as np
+from typing import List, Optional
 
 # Ensure imports resolve when the script is launched from outside the repo root.
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -33,6 +35,7 @@ from core.config import (
     MapElitesConfig,
     AutoencoderConfig,
     NSGA2Config,
+    FACILITY_SPECS,
     generate_facility_mix
 )
 from core.mapelites_with_autoencoder import MapElitesWithAutoencoder
@@ -40,8 +43,53 @@ from core.mapelites_algorithm import PureMapElitesOptimizer
 from core.nsga2_algorithm import PureNSGA2Optimizer
 from core.visualization import (
     visualize_mapelites_archive_heatmap,
-    visualize_layout
+    visualize_layout_preview,
+    export_cslpelite_results
 )
+
+
+def parse_facility_mix(mix_spec: str) -> List[str]:
+    """Parse a CLI facility mix such as core=2,crane=1,storage=2."""
+    if not mix_spec or not mix_spec.strip():
+        raise ValueError("Facility mix cannot be empty.")
+
+    facilities: List[str] = []
+    valid_types = set(FACILITY_SPECS)
+    parts = [part.strip() for part in mix_spec.replace(";", ",").split(",") if part.strip()]
+
+    for part in parts:
+        if "=" in part:
+            name, count_text = part.split("=", 1)
+        elif ":" in part:
+            name, count_text = part.split(":", 1)
+        else:
+            name, count_text = part, "1"
+
+        facility_type = name.strip()
+        if facility_type not in valid_types:
+            valid = ", ".join(sorted(valid_types))
+            raise ValueError(f"Unknown facility type '{facility_type}'. Valid types: {valid}.")
+
+        try:
+            count = int(count_text.strip())
+        except ValueError as exc:
+            raise ValueError(f"Invalid count for '{facility_type}': {count_text!r}.") from exc
+
+        if count < 0:
+            raise ValueError(f"Facility count for '{facility_type}' must be zero or greater.")
+
+        facilities.extend([facility_type] * count)
+
+    if not facilities:
+        raise ValueError("Facility mix must include at least one facility.")
+
+    return facilities
+
+
+def make_run_output_dir(base_dir: str, run_label: str) -> str:
+    """Create a timestamped output folder for one run."""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return os.path.join(base_dir, f"{run_label}_{timestamp}")
 
 
 def visualize_diverse_layouts(archive, algorithm, num_layouts=9):
@@ -204,7 +252,13 @@ def run_mapelites_with_learned_bds(
     latent_dim: int = 2,
     save_model: bool = True,
     output_dir: str = "results",
-    seed: int = 42
+    seed: int = 42,
+    visualize: bool = False,
+    export_count: int = 30,
+    export_all: bool = False,
+    export_pngs: bool = True,
+    export_safe_only: bool = True,
+    facility_mix: Optional[List[str]] = None
 ):
     """
     Run MAP-Elites with autoencoder-based behavioral descriptor learning.
@@ -220,6 +274,12 @@ def run_mapelites_with_learned_bds(
         save_model: Whether to save trained models
         output_dir: Directory for results
         seed: Random seed for reproducibility
+        visualize: Whether to export individual layout JSON files and PNG previews
+        export_count: Number of layouts to export when export_all is False
+        export_all: Export every final archive layout instead of the top subset
+        export_pngs: Save a PNG preview beside each exported layout JSON
+        export_safe_only: Export only strictly feasible layouts with no violations
+        facility_mix: Optional explicit facility type list overriding auto-generation
     """
     from core.layout_autoencoder import set_random_seeds
     
@@ -234,6 +294,15 @@ def run_mapelites_with_learned_bds(
     # Create output directory
     os.makedirs(output_dir, exist_ok=True)
     
+    # Generate or apply facility mix before creating the site config.
+    if facility_mix is not None:
+        facility_types = list(facility_mix)
+        facility_count = len(facility_types)
+        mix_source = "custom"
+    else:
+        facility_types = generate_facility_mix(facility_count, seed=seed)
+        mix_source = "auto"
+
     # Configuration
     site_config = SiteConfig(
         facility_count=facility_count,
@@ -262,11 +331,9 @@ def run_mapelites_with_learned_bds(
         seed=seed
     )
     
-    # Generate facility mix
-    facility_types = generate_facility_mix(facility_count, seed=seed)
-    
     print(f"\nConfiguration:")
     print(f"  Facilities: {facility_count} - {', '.join(facility_types)}")
+    print(f"  Facility mix source: {mix_source}")
     print(f"  Archive: {mapelites_config.grid_size[0]}x{mapelites_config.grid_size[1]} = {mapelites_config.grid_size[0] * mapelites_config.grid_size[1]} cells")
     print(f"  Iterations: {iterations}")
     print(f"  Initial population: {initial_population}")
@@ -301,7 +368,8 @@ def run_mapelites_with_learned_bds(
     print(f"\nQuality Metrics:")
     print(f"  Average scalar fitness: {stats['avg_scalar_fitness']:.4f}")
     print(f"  Best scalar fitness: {stats['best_scalar_fitness']:.4f}")
-    print(f"  Safety feasible solutions (>=0.7): {stats['safety_feasible_count']}")
+    print(f"  Safety-threshold solutions (>=0.7): {stats['safety_feasible_count']}")
+    print(f"  Strict feasible solutions (no violations): {stats.get('strict_feasible_count', 'N/A')}")
     
     print(f"\nBehavioral Descriptors:")
     print(f"  Final mode: {results['bd_mode']}")
@@ -337,7 +405,7 @@ def run_mapelites_with_learned_bds(
     
     # 2. Best solution layout
     if best:
-        fig = visualize_layout(
+        fig = visualize_layout_preview(
             best.solution,
             best.entrances,
             title=f"Best Layout - Fitness: {algorithm.archive.calculate_scalar_fitness(best):.3f}"
@@ -399,6 +467,7 @@ def run_mapelites_with_learned_bds(
             "avg_scalar_fitness": float(stats['avg_scalar_fitness']),
             "best_scalar_fitness": float(stats['best_scalar_fitness']),
             "safety_feasible_count": int(stats['safety_feasible_count']),
+            "strict_feasible_count": int(stats.get('strict_feasible_count', 0)),
             "runtime_seconds": float(results['runtime'])
         },
         "bd_mode": results['bd_mode'],
@@ -419,23 +488,46 @@ def run_mapelites_with_learned_bds(
             },
             "feasible": bool(best.feasible)
         }
+
+    if visualize:
+        max_layouts = None if export_all else export_count
+        exported_layouts = export_cslpelite_results(
+            results['archive'],
+            site_config,
+            output_dir,
+            max_layouts=max_layouts,
+            export_pngs=export_pngs,
+            safe_only=export_safe_only
+        )
+        results_json["exported_layouts"] = {
+            "count": int(exported_layouts),
+            "pngs": bool(export_pngs),
+            "strict_feasible_only": bool(export_safe_only),
+            "all_archive_layouts": bool(export_all)
+        }
     
     json_path = os.path.join(output_dir, "results.json")
     with open(json_path, 'w') as f:
         json.dump(results_json, f, indent=2)
     print(f"  Saved results JSON: {json_path}")
     
-    print(f"\n✓ All results saved to: {output_dir}/")
+    print(f"\nAll results saved to: {output_dir}/")
     
     return results
 
 
-def compare_hand_crafted_vs_learned(seed=42):
+def compare_hand_crafted_vs_learned(
+    seed=42,
+    facility_mix: Optional[List[str]] = None,
+    output_dir: str = "results/compare"
+):
     """
     Run comparative experiment: hand-crafted vs learned behavioral descriptors.
     
     Args:
         seed: Random seed for reproducibility
+        facility_mix: Optional explicit facility type list shared by both runs
+        output_dir: Parent directory for comparison outputs
     """
     from core.layout_autoencoder import set_random_seeds
     
@@ -450,12 +542,12 @@ def compare_hand_crafted_vs_learned(seed=42):
         {
             "name": "Hand-Crafted BDs",
             "use_learned": False,
-            "output_dir": "results_handcrafted"
+            "output_dir": os.path.join(output_dir, "handcrafted")
         },
         {
             "name": "Learned BDs (Autoencoder)",
             "use_learned": True,
-            "output_dir": "results_learned"
+            "output_dir": os.path.join(output_dir, "learned")
         }
     ]
     
@@ -467,14 +559,15 @@ def compare_hand_crafted_vs_learned(seed=42):
         print(f"{'='*80}")
         
         results = run_mapelites_with_learned_bds(
-            facility_count=5,
+            facility_count=len(facility_mix) if facility_mix is not None else 5,
             iterations=8000,
             initial_population=400,
             use_learned_descriptors=config['use_learned'],
             pretrain_iterations=2000,
             training_frequency=1000,
             output_dir=config['output_dir'],
-            seed=seed
+            seed=seed,
+            facility_mix=facility_mix
         )
         
         all_results[config['name']] = results
@@ -498,7 +591,8 @@ def run_ablation_study(
     iterations=10000,
     initial_population=500,
     seed=42,
-    output_dir="results/ablation"
+    output_dir="results/ablation",
+    facility_mix: Optional[List[str]] = None
 ):
     """
     Run ablation study comparing:
@@ -512,6 +606,7 @@ def run_ablation_study(
         initial_population: Initial population size
         seed: Random seed for reproducibility
         output_dir: Directory for ablation results
+        facility_mix: Optional explicit facility type list shared by all methods
     """
     import time
     from core.layout_autoencoder import set_random_seeds
@@ -522,8 +617,17 @@ def run_ablation_study(
     print("="*80)
     print("ABLATION STUDY: CEXO Components Analysis")
     print("="*80)
+    if facility_mix is not None:
+        facility_types = list(facility_mix)
+        facilities = len(facility_types)
+        mix_source = "custom"
+    else:
+        facility_types = generate_facility_mix(facilities, seed=seed)
+        mix_source = "auto"
+
     print(f"\nConfiguration:")
-    print(f"  Facilities: {facilities}")
+    print(f"  Facilities: {facilities} - {', '.join(facility_types)}")
+    print(f"  Facility mix source: {mix_source}")
     print(f"  Iterations/Generations: {iterations}")
     print(f"  Initial Population: {initial_population}")
     print(f"  Seed: {seed}")
@@ -544,7 +648,6 @@ def run_ablation_study(
     start_time = time.time()
     
     site_config = SiteConfig(facility_count=facilities, seed=seed)
-    facility_types = generate_facility_mix(facilities, seed=seed)
     mapelites_config = MapElitesConfig(
         iterations=iterations,
         initial_population=initial_population
@@ -585,7 +688,7 @@ def run_ablation_study(
         'num_solutions': len(all_inds)
     }
     
-    print(f"\n✓ Completed: Coverage={coverage:.2f}%, Best Fitness={best_fitness:.3f}, Time={runtime:.1f}s")
+    print(f"\nCompleted: Coverage={coverage:.2f}%, Best Fitness={best_fitness:.3f}, Time={runtime:.1f}s")
     
     # =========================================================================
     # 2. Exploration Baseline - Quality diversity without learning
@@ -598,7 +701,6 @@ def run_ablation_study(
     start_time = time.time()
     
     site_config = SiteConfig(facility_count=facilities, seed=seed)
-    facility_types = generate_facility_mix(facilities, seed=seed)
     mapelites_config = MapElitesConfig(
         iterations=iterations,
         initial_population=initial_population
@@ -630,7 +732,7 @@ def run_ablation_study(
         'num_solutions': len(all_inds)
     }
     
-    print(f"\n✓ Completed: Coverage={coverage:.2f}%, Best Fitness={best_fitness:.3f}, Time={runtime:.1f}s")
+    print(f"\nCompleted: Coverage={coverage:.2f}%, Best Fitness={best_fitness:.3f}, Time={runtime:.1f}s")
     
     # =========================================================================
     # 3. Optimization Baseline - Pure multi-objective optimization
@@ -643,7 +745,6 @@ def run_ablation_study(
     start_time = time.time()
     
     site_config = SiteConfig(facility_count=facilities, seed=seed)
-    facility_types = generate_facility_mix(facilities, seed=seed)
     nsga2_config = NSGA2Config(
         population_size=initial_population,
         generations=iterations // 10  # Adjust for comparable evaluation budget
@@ -679,7 +780,7 @@ def run_ablation_study(
         'num_solutions': len(final_population)
     }
     
-    print(f"\n✓ Completed: Best Fitness={best_fitness:.3f}, Time={runtime:.1f}s")
+    print(f"\nCompleted: Best Fitness={best_fitness:.3f}, Time={runtime:.1f}s")
     
     # =========================================================================
     # Generate Comparison Report
@@ -698,10 +799,10 @@ def run_ablation_study(
     print("\n" + "="*80)
     print("KEY INSIGHTS")
     print("="*80)
-    print(f"✓ CEXO (Proposed) achieves {results['CEXO (Proposed)']['coverage']:.1f}% behavioral coverage")
-    print(f"✓ Exploration Baseline achieves {results['Exploration Baseline']['coverage']:.1f}% coverage")
-    print(f"✓ Optimization Baseline focuses on quality without diversity")
-    print(f"✓ CEXO combines high coverage ({results['CEXO (Proposed)']['coverage']:.1f}%) with high fitness ({results['CEXO (Proposed)']['best_fitness']:.3f})")
+    print(f"- CEXO (Proposed) achieves {results['CEXO (Proposed)']['coverage']:.1f}% behavioral coverage")
+    print(f"- Exploration Baseline achieves {results['Exploration Baseline']['coverage']:.1f}% coverage")
+    print(f"- Optimization Baseline focuses on quality without diversity")
+    print(f"- CEXO combines high coverage ({results['CEXO (Proposed)']['coverage']:.1f}%) with high fitness ({results['CEXO (Proposed)']['best_fitness']:.3f})")
     
     # Save results
     results_json = {
@@ -719,7 +820,7 @@ def run_ablation_study(
     with open(json_path, 'w') as f:
         json.dump(results_json, f, indent=2)
     
-    print(f"\n✓ Results saved to: {json_path}")
+    print(f"\nResults saved to: {json_path}")
     
     # Generate comparative visualizations
     print(f"\n  Generating comparative visualizations...")
@@ -778,7 +879,7 @@ def run_ablation_study(
     print(f"  Saved: {comparison_path}")
     
     print("\n" + "="*80)
-    print(f"✓ Ablation study complete! Results saved to: {output_dir}")
+    print(f"Ablation study complete! Results saved to: {output_dir}")
     print("="*80)
     
     return results
@@ -795,24 +896,48 @@ if __name__ == "__main__":
     parser.add_argument('--pretrain', type=int, default=2000, help='Pretrain iterations')
     parser.add_argument('--train-freq', type=int, default=1000, help='Training frequency')
     parser.add_argument('--latent-dim', type=int, default=2, help='Latent dimension')
-    parser.add_argument('--output', type=str, default='results', help='Output directory')
+    parser.add_argument('--output', type=str, default='results', help='Base output directory; each run creates a timestamped subfolder')
     parser.add_argument('--compare', action='store_true', help='Run comparison experiment')
     parser.add_argument('--ablation', action='store_true', help='Run ablation study')
     parser.add_argument('--seed', type=int, default=42, help='Random seed for reproducibility')
+    parser.add_argument(
+        '--facility-mix',
+        type=str,
+        default=None,
+        help="Override auto facility selection, e.g. core=2,crane=1,storage=2,office=1,rest_area=1"
+    )
+    parser.add_argument('--visualize', action='store_true', help='Export final archive layouts as JSON files and PNG previews')
+    parser.add_argument('--export-count', type=int, default=30, help='Number of final archive layouts to export')
+    parser.add_argument('--export-all', action='store_true', help='Export every final archive layout instead of only the top export-count layouts')
+    parser.add_argument('--no-export-pngs', action='store_true', help='Only export layout JSON files, without PNG previews')
+    parser.add_argument('--export-unsafe', action='store_true', help='Include layouts with recorded feasibility violations in exports')
     
     args = parser.parse_args()
+
+    try:
+        facility_mix = parse_facility_mix(args.facility_mix) if args.facility_mix else None
+    except ValueError as exc:
+        parser.error(str(exc))
     
     if args.ablation:
+        output_dir = make_run_output_dir(args.output, "ablation")
         run_ablation_study(
             facilities=args.facilities,
             iterations=args.iterations,
             initial_population=args.initial_pop,
             seed=args.seed,
-            output_dir=os.path.join(args.output, 'ablation')
+            output_dir=output_dir,
+            facility_mix=facility_mix
         )
     elif args.compare:
-        compare_hand_crafted_vs_learned(seed=args.seed)
+        output_dir = make_run_output_dir(args.output, "compare")
+        compare_hand_crafted_vs_learned(
+            seed=args.seed,
+            facility_mix=facility_mix,
+            output_dir=output_dir
+        )
     else:
+        output_dir = make_run_output_dir(args.output, "cexo")
         run_mapelites_with_learned_bds(
             facility_count=args.facilities,
             iterations=args.iterations,
@@ -821,6 +946,12 @@ if __name__ == "__main__":
             pretrain_iterations=args.pretrain,
             training_frequency=args.train_freq,
             latent_dim=args.latent_dim,
-            output_dir=args.output,
-            seed=args.seed
+            output_dir=output_dir,
+            seed=args.seed,
+            visualize=args.visualize,
+            export_count=args.export_count,
+            export_all=args.export_all,
+            export_pngs=not args.no_export_pngs,
+            export_safe_only=not args.export_unsafe,
+            facility_mix=facility_mix
         )

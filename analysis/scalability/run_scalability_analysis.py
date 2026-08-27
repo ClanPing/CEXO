@@ -6,10 +6,13 @@ Tests algorithm performance across varying facility counts (3-8 facilities)
 import sys
 import time
 import json
+import argparse
 import pandas as pd
 import numpy as np
 from pathlib import Path
 from scipy import stats
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 # Import CEXO components
 from core.mapelites_with_autoencoder import MapElitesWithAutoencoder
@@ -168,6 +171,9 @@ def format_markdown_table(summary_df):
 
 def main():
     """Run scalability analysis across 3-8 facilities with autoencoder."""
+    parser = argparse.ArgumentParser(description="Run CEXO scalability analysis.")
+    parser.add_argument("--seed", type=int, default=42, help="Base seed; each facility setting uses seed, seed+1, and seed+2.")
+    args = parser.parse_args()
     
     print("="*80)
     print("SCALABILITY ANALYSIS - CEXO with Autoencoder-Learned Behavioral Descriptors")
@@ -189,7 +195,8 @@ def main():
     
     print("Configuration:")
     print(f"  Facility range: 3-8")
-    print(f"  Seeds per config: 3 (seeds 42, 43, 44)")
+    seeds = [args.seed + i for i in range(3)]
+    print(f"  Seeds per config: 3 (seeds {', '.join(str(seed) for seed in seeds)})")
     print(f"  Grid size: 20x20 (400 cells)")
     print(f"  Iterations: 15,000")
     print(f"  Population: 500")
@@ -200,7 +207,7 @@ def main():
     
     # Configure site and algorithm settings
     site_config = SiteConfig(
-        seed=42,
+        seed=args.seed,
         boundary_margin=0.05,
         pareto_size=12,
         facility_count=6  # Will be updated per run
@@ -219,7 +226,6 @@ def main():
     # Run all configurations
     all_results = []
     facility_range = range(3, 9)  # 3 to 8 inclusive
-    seeds = [42, 43, 44]  # 3 seeds per configuration
     
     total_runs = len(facility_range) * len(seeds)
     current_run = 0

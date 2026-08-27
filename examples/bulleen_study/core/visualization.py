@@ -616,8 +616,9 @@ def export_cslpelite_results(
     site_width_m: float = 100.0,
     site_length_m: float = 100.0,
     coordinate_space: str = "normalized",
+    export_pngs: bool = True,
 ) -> int:
-    """Export CSLP Elite (MAP-Elites + NSGA-II) results to JSON"""
+    """Export CSLP Elite (MAP-Elites + NSGA-II) results to JSON and optional PNG."""
     print(f"Exporting CSLP Elite (MAP-Elites + NSGA-II) results to {output_dir}/...")
     os.makedirs(output_dir, exist_ok=True)
     
@@ -696,6 +697,21 @@ def export_cslpelite_results(
         filepath = os.path.join(output_dir, f"cslpelite_layout_{i:03d}.json")
         with open(filepath, 'w') as f:
             json.dump(layout_data, f, indent=2)
+
+        if export_pngs:
+            fig = visualize_layout(
+                individual.solution,
+                individual.entrances,
+                title=(
+                    f"Bulleen Layout {i + 1} | Safety: {individual.objectives[0]:.3f} | "
+                    f"Eff: {individual.objectives[1]:.3f} | Adapt: {individual.objectives[2]:.3f}"
+                ),
+                config=config,
+            )
+            png_filepath = os.path.join(output_dir, f"cslpelite_layout_{i:03d}.png")
+            fig.savefig(png_filepath, dpi=150, bbox_inches='tight')
+            plt.close(fig)
+
         exported += 1
     
     # Create summary
@@ -713,6 +729,7 @@ def export_cslpelite_results(
         },
         "total_exported": exported,
         "export_includes_unsafe": include_unsafe,
+        "export_pngs": export_pngs,
         "archive_performance": {
             "grid_size": f"{archive.grid_size[0]}×{archive.grid_size[1]}",
             "coverage": stats['coverage'],
