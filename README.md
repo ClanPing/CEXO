@@ -32,9 +32,12 @@ CEXO/
 ├── .gitignore
 ├── INFO.md                          # Project information
 ├── LICENSE
-├── README.md                        # This file
+├── README.md                        # Main repository documentation
+├── analysis.py                      # Unified entry point for reproducibility, scalability, sensitivity, and comparison analysis
 ├── main.py                          # Main entry point for running the CEXO workflow
 ├── requirements.txt                 # Dependencies for Conda environment
+├── run_mapelites.py                 # Baseline runner for MAP-Elites
+├── run_nsga2.py                     # Baseline runner for NSGA-II
 ```
 
 ## 📋Project Information
