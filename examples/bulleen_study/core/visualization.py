@@ -10,9 +10,10 @@ Includes layout visualizations, performance analysis, and comparative studies.
 import os
 import json
 from typing import List, Dict, Optional
+from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle, Circle
+from matplotlib.patches import Rectangle, Circle, Polygon
 from mpl_toolkits.mplot3d import Axes3D
 
 from .config import (
@@ -699,18 +700,23 @@ def export_cslpelite_results(
             json.dump(layout_data, f, indent=2)
 
         if export_pngs:
-            fig = visualize_layout(
-                individual.solution,
-                individual.entrances,
-                title=(
-                    f"Bulleen Layout {i + 1} | Safety: {individual.objectives[0]:.3f} | "
-                    f"Eff: {individual.objectives[1]:.3f} | Adapt: {individual.objectives[2]:.3f}"
-                ),
-                config=config,
-            )
             png_filepath = os.path.join(output_dir, f"cslpelite_layout_{i:03d}.png")
-            fig.savefig(png_filepath, dpi=150, bbox_inches='tight')
-            plt.close(fig)
+            try:
+                from scripts.generate_2d_previews import draw_layout as draw_bulleen_layout
+
+                draw_bulleen_layout(layout_data, Path(png_filepath), dpi=150)
+            except ImportError:
+                fig = visualize_layout(
+                    individual.solution,
+                    individual.entrances,
+                    title=(
+                        f"Bulleen Layout {i + 1} | Safety: {individual.objectives[0]:.3f} | "
+                        f"Eff: {individual.objectives[1]:.3f} | Adapt: {individual.objectives[2]:.3f}"
+                    ),
+                    config=config,
+                )
+                fig.savefig(png_filepath, dpi=150, bbox_inches='tight')
+                plt.close(fig)
 
         exported += 1
     
@@ -1029,18 +1035,52 @@ def visualize_layout(facilities: List[Dict], entrances: List,
     Returns:
         Matplotlib figure
     """
-    fig, ax = plt.subplots(figsize=(10, 10))
+    fig, ax = plt.subplots(figsize=(8, 8))
     site_config = config or SiteConfig()
-    
-    # Draw boundary
-    draw_site_boundary(ax, site_config, color='black', linestyle='-', linewidth=2)
+
+    if site_config.boundary_polygon:
+        ax.add_patch(
+            Polygon(
+                site_config.boundary_polygon,
+                closed=True,
+                facecolor="#f7eadc",
+                edgecolor="#d9272e",
+                linewidth=2.4,
+                alpha=0.55,
+                zorder=1,
+            )
+        )
+    else:
+        draw_site_boundary(ax, site_config, color="#d9272e", linestyle="-", linewidth=2.4)
+
+    for zone in site_config.exclusion_zones or []:
+        polygon = zone.get("polygon") or []
+        if len(polygon) >= 3:
+            ax.add_patch(
+                Polygon(
+                    polygon,
+                    closed=True,
+                    facecolor="#ffe45c",
+                    edgecolor="#d3bd00",
+                    linewidth=1.0,
+                    alpha=0.85,
+                    zorder=2,
+                )
+            )
     
     # Draw entrances
-    for i, entrance in enumerate(entrances):
-        ax.plot(entrance[0], entrance[1], marker='*', markersize=20, 
-                color='gold', markeredgecolor='darkorange', markeredgewidth=2, zorder=10)
-        ax.text(entrance[0], entrance[1] - 0.05, f'E{i+1}', ha='center', 
-                fontsize=10, fontweight='bold', color='darkorange')
+    for i, entrance in enumerate(entrances, start=1):
+        ax.plot(
+            entrance[0],
+            entrance[1],
+            marker="*",
+            markersize=13,
+            color="#f4c430",
+            markeredgecolor="#a36b00",
+            zorder=6,
+        )
+        ax.text(entrance[0], entrance[1] - 0.025, f"E{i}", ha="center",
+                va="top", fontsize=7, color="#8a5a00")
     
     # Draw facilities
     for facility in facilities:
@@ -1051,7 +1091,7 @@ def visualize_layout(facilities: List[Dict], entrances: List,
         
         rect = Rectangle((x - w/2, y - h/2), w, h, 
                         facecolor=FACILITY_COLORS[ftype], 
-                        edgecolor='black', linewidth=1.5, alpha=0.8)
+                        edgecolor="#1f2933", linewidth=1.0, alpha=0.86, zorder=4)
         ax.add_patch(rect)
         
         # Add labels
@@ -1059,26 +1099,23 @@ def visualize_layout(facilities: List[Dict], entrances: List,
                      "office": "OFFICE", "rest_area": "REST"}
         label = label_map.get(ftype, ftype.upper())
         ax.text(x, y, label, ha='center', va='center', 
-                fontsize=8, fontweight='bold', color='white')
+                fontsize=5.5, fontweight='bold', color='white', zorder=5)
         
         # Crane danger zones
         if ftype == "crane":
-            operating_circle = Circle((x, y), spec["operating_radius"],
-                                    fill=False, linestyle='--', edgecolor='darkorange',
-                                    alpha=0.6, linewidth=2)
-            ax.add_patch(operating_circle)
-            danger_circle = Circle((x, y), spec["danger_radius"], 
-                                 fill=False, linestyle='--', edgecolor='red', 
-                                 alpha=0.6, linewidth=2)
+            radius = min(float(spec.get("danger_radius", 0.10)), float(spec.get("jib_length_m", 6.0)) / 300.0)
+            danger_circle = Circle((x, y), radius,
+                                 fill=False, linestyle='--', edgecolor="#e63232", 
+                                 alpha=0.7, linewidth=1.0, zorder=3)
             ax.add_patch(danger_circle)
     
-    ax.set_xlim(-0.02, 1.02)
-    ax.set_ylim(-0.02, 1.02)
-    ax.set_aspect('equal')
-    ax.grid(True, alpha=0.3)
-    ax.set_title(title, fontsize=14, fontweight='bold')
-    ax.set_xlabel('X Position', fontsize=11)
-    ax.set_ylabel('Y Position', fontsize=11)
+    ax.set_xlim(0.08, 0.92)
+    ax.set_ylim(0.14, 0.86)
+    ax.set_aspect("equal", adjustable="box")
+    ax.grid(True, linewidth=0.5, alpha=0.28)
+    ax.set_title(title, fontsize=10, fontweight="bold")
+    ax.set_xlabel("Normalized X")
+    ax.set_ylabel("Normalized Y")
     
     plt.tight_layout()
     return fig
