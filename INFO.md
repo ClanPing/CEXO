@@ -434,6 +434,10 @@ The autoencoder extends CEXO beyond fixed hand-crafted behavioural descriptors. 
 
 When learned descriptors are enabled, CEXO trains an autoencoder on encoded facility and entrance geometry. The learned latent coordinates are then normalised and used as the behavioural archive coordinates.
 
+<p align="center">
+<img src="assets/autoencoder.png" alt="Autoencoder Overview" width="700"/>
+</p>
+
 The learned descriptor workflow is:
 
 1. Generate an initial pool of layouts.
