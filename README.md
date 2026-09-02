@@ -255,7 +255,7 @@ A practical case study is provided under `examples/bulleen_study`. This example 
 
 To run:
 ```powershell
-# Full run:
+# Full run: (est. 60+ minutes runtime)
 cd examples\bulleen_study
 python run_bulleen_cexo_pipeline.py
 
